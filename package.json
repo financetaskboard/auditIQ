@@ -1,0 +1,23 @@
+{
+  "name": "odoo-attachment-audit",
+  "version": "1.0.0",
+  "description": "Local proxy tool to find Odoo journal entries missing attachments",
+  "main": "attachment-server.js",
+  "scripts": {
+    "start": "node attachment-server.js",
+    "dev": "nodemon attachment-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": ["odoo", "accounting", "audit", "attachments", "compliance"],
+  "license": "MIT"
+}

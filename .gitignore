@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Credentials — never commit this file
+odoo-settings.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

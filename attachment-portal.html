@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attachment Audit Portal</title>
+<style>
+  :root {
+    --primary: #0078d4;
+    --primary-dark: #005a9e;
+    --primary-light: #deecf9;
+    --accent-orange: #d83b01;
+    --accent-yellow: #ffb900;
+    --bg: #f3f2f1;
+    --surface: #ffffff;
+    --surface2: #faf9f8;
+    --border: #e1dfdd;
+    --border2: #c8c6c4;
+    --text: #201f1e;
+    --text2: #605e5c;
+    --text3: #a19f9d;
+    --shell-bg: #1b1a19;
+    --danger: #a4262c;
+    --warning: #d83b01;
+    --success: #107c10;
+    --radius: 2px;
+    --shadow: 0 1.6px 3.6px rgba(0,0,0,.132), 0 .3px .9px rgba(0,0,0,.108);
+    --shadow-md: 0 6.4px 14.4px rgba(0,0,0,.132), 0 1.2px 3.6px rgba(0,0,0,.108);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  /* ── Shell ── */
+  .shell { background: var(--shell-bg); height: 48px; min-height: 48px; display: flex; align-items: center; z-index: 1000; flex-shrink: 0; }
+  .shell-brand { width: 240px; min-width: 240px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-right: 1px solid #2d2c2b; height: 100%; }
+  .shell-logo { display: flex; align-items: center; gap: 9px; color: #fff; font-size: 14px; font-weight: 700; }
+  .shell-logo svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .shell-logo-sub { color: #8a8886; font-size: 11px; font-weight: 400; margin-top: 1px; }
+  .shell-main { flex: 1; display: flex; align-items: center; padding: 0 20px; gap: 12px; }
+  .shell-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+  .odoo-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8a8886; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #484644; transition: background .3s; flex-shrink: 0; }
+  .status-dot.connected  { background: var(--success); }
+  .status-dot.connecting { background: var(--accent-yellow); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .shell-user { display: flex; align-items: center; gap: 8px; color: #c8c6c4; font-size: 12px; cursor: pointer; padding: 4px 8px; border-radius: var(--radius); }
+  .shell-user:hover { background: #2d2c2b; }
+  .shell-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-orange); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+
+  /* ── App Body ── */
+  .app-body { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .sidebar-cmd { padding: 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+  .sidebar-nav { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .nav-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); padding: 12px 16px 4px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer; border-left: 3px solid transparent; transition: all .12s; color: var(--text2); font-size: 13px; }
+  .nav-item:hover { background: var(--primary-light); color: var(--primary); border-left-color: #c7e0f4; }
+  .nav-item.active { background: #deecf9; color: var(--primary); font-weight: 600; border-left-color: var(--primary); }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: .8; }
+  .nav-item.active svg { opacity: 1; }
+  .nav-badge { margin-left: auto; background: var(--danger); color: #fff; border-radius: 10px; font-size: 10px; font-weight: 700; min-width: 20px; height: 20px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; }
+  .nav-badge.zero { background: #c8c6c4; }
+  .sidebar-footer { border-top: 1px solid var(--border); padding: 12px; }
+
+  /* ── Buttons ── */
+  .cmd-btn { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: none; background: transparent; color: var(--text); font-size: 13px; cursor: pointer; border-radius: var(--radius); transition: background .15s; width: 100%; text-align: left; font-family: inherit; }
+  .cmd-btn:hover { background: var(--primary-light); color: var(--primary); }
+  .cmd-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .cmd-btn.primary { background: var(--primary); color: #fff; }
+  .cmd-btn.primary:hover { background: var(--primary-dark); }
+  .cmd-sep { height: 1px; background: var(--border); margin: 4px 0; }
+  .topbar-btn { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border2); background: var(--surface); color: var(--text); font-size: 12px; cursor: pointer; border-radius: var(--radius); transition: all .15s; white-space: nowrap; font-family: inherit; }
+  .topbar-btn:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+  .topbar-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .topbar-btn.primary:hover { background: var(--primary-dark); }
+  .topbar-btn svg { width: 14px; height: 14px; }
+  .topbar-sep { width: 1px; height: 20px; background: var(--border); }
+
+  /* ── Content Panel ── */
+  .content-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .content-topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 44px; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; }
+  .content-topbar-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .content-topbar-actions { display: flex; align-items: center; gap: 6px; }
+
+  /* ── Pages ── */
+  .page { padding: 20px 24px; display: none; flex: 1; overflow-y: auto; }
+  .page.active { display: block; }
+
+  /* ── Info Cards ── */
+  .info-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .info-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+  .info-card.hl-red   { border-color: #f1cdd0; background: #fff8f8; }
+  .info-card.hl-green { border-color: #c8e6c9; background: #f8fff8; }
+  .info-card-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--text3); margin-bottom: 6px; }
+  .info-card-value { font-size: 28px; font-weight: 700; line-height: 1; }
+  .info-card-value.blue   { color: var(--primary); }
+  .info-card-value.red    { color: var(--danger); }
+  .info-card-value.green  { color: var(--success); }
+  .info-card-value.orange { color: var(--warning); }
+  .info-card-sub { font-size: 11px; color: var(--text2); margin-top: 6px; }
+  .compliance-bar-wrap { margin-top: 8px; background: #f3f2f1; border-radius: 4px; height: 6px; overflow: hidden; }
+  .compliance-bar-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
+
+  /* ── Filter Bar ── */
+  .filter-bar { padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
+  .filter-label { font-size: 12px; font-weight: 600; color: var(--text2); white-space: nowrap; }
+  .fl-input  { height: 30px; border: 1px solid var(--border2); background: var(--surface); color: var(--text); font-size: 13px; padding: 0 10px; border-radius: var(--radius); outline: none; font-family: inherit; }
+  .fl-input:focus  { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+  .fl-select { height: 30px; border: 1px solid var(--border2); background: var(--surface); color: var(--text); font-size: 13px; padding: 0 28px 0 10px; border-radius: var(--radius); outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23605e5c'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; cursor: pointer; font-family: inherit; }
+  .fl-select:focus { border-color: var(--primary); }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-sep { width: 1px; height: 20px; background: var(--border2); }
+  .period-btn { height: 30px; padding: 0 12px; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-size: 12px; border-radius: var(--radius); cursor: pointer; font-family: inherit; transition: all .12s; white-space: nowrap; }
+  .period-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .period-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  /* ── Table ── */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: auto; flex: 1; }
+  .data-table { width: 100%; min-width: 1060px; border-collapse: collapse; font-size: 13px; }
+  .data-table thead { background: #f3f2f1; position: sticky; top: 0; z-index: 2; }
+  .data-table th { padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text2); border-bottom: 2px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+  .data-table th:hover { background: var(--primary-light); color: var(--primary); }
+  .data-table th.asc::after  { content: ' ▲'; font-size: 9px; }
+  .data-table th.desc::after { content: ' ▼'; font-size: 9px; }
+  .data-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: #fde7e9; }
+  .sno { color: var(--text3); font-size: 11px; width: 36px; }
+  .amt { font-family: 'Courier New', monospace; text-align: right; white-space: nowrap; }
+
+  /* ── Badges ── */
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-entry  { background: #deecf9; color: #0078d4; }
+  .badge-bill   { background: #fff4ce; color: #7a4f00; }
+  .badge-other  { background: #f3f2f1; color: #605e5c; }
+  .badge-credit { background: #dff6dd; color: #107c10; }
+
+  /* ── Icon Button ── */
+  .icon-btn { width: 28px; height: 28px; border: 1px solid var(--border); background: var(--surface); color: var(--text2); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .15s; text-decoration: none; flex-shrink: 0; }
+  .icon-btn:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+  .icon-btn svg { width: 14px; height: 14px; }
+
+  /* ── Pagination ── */
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface2); border-top: 1px solid var(--border); font-size: 12px; color: var(--text2); flex-shrink: 0; }
+  .page-btns { display: flex; gap: 3px; }
+  .page-btn { height: 26px; min-width: 26px; border: 1px solid var(--border); background: var(--surface); color: var(--text2); border-radius: var(--radius); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 6px; font-family: inherit; }
+  .page-btn:hover { background: var(--primary-light); color: var(--primary); }
+  .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .page-btn:disabled { opacity: .4; cursor: default; }
+
+  /* ── Modal ── */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 2000; }
+  .overlay.open { display: flex; align-items: center; justify-content: center; }
+  .modal { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-md); width: 520px; max-width: 95vw; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-size: 15px; font-weight: 600; }
+  .modal-close { width: 28px; height: 28px; border: none; background: transparent; font-size: 18px; cursor: pointer; color: var(--text2); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; }
+  .modal-close:hover { background: var(--border); }
+  .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+  .modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group.full { grid-column: 1/-1; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text2); }
+  .form-input { height: 32px; border: 1px solid var(--border2); padding: 0 10px; border-radius: var(--radius); font-size: 13px; font-family: inherit; color: var(--text); outline: none; }
+  .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+  .form-hint { font-size: 11px; color: var(--text3); }
+
+  /* ── Alert ── */
+  .alert { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px; }
+  .alert svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+  .alert-info    { background: var(--primary-light); color: var(--primary-dark); border-left: 3px solid var(--primary); }
+  .alert-warning { background: #fff4ce; color: #7a4f00; border-left: 3px solid var(--accent-yellow); }
+  .alert-error   { background: #fde7e9; color: var(--danger); border-left: 3px solid var(--danger); }
+  .alert-success { background: #dff6dd; color: var(--success); border-left: 3px solid var(--success); }
+
+  /* ── Loading Bar ── */
+  .loading-bar { height: 3px; background: var(--primary-light); position: relative; overflow: hidden; display: none; flex-shrink: 0; }
+  .loading-bar.active { display: block; }
+  .loading-bar::after { content: ''; position: absolute; left: -40%; width: 40%; height: 100%; background: var(--primary); animation: load 1.2s infinite ease; }
+  @keyframes load { 0%{left:-40%} 100%{left:100%} }
+
+  /* ── Toast ── */
+  .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; }
+  .toast { background: var(--shell-bg); color: #fff; padding: 11px 16px; border-radius: var(--radius); font-size: 13px; box-shadow: var(--shadow-md); display: flex; align-items: center; gap: 10px; min-width: 260px; animation: slideIn .2s ease; }
+  .toast.success { border-left: 3px solid var(--success); }
+  .toast.error   { border-left: 3px solid var(--danger); }
+  .toast.info    { border-left: 3px solid var(--primary); }
+  @keyframes slideIn { from{transform:translateX(40px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+  /* ── Empty State ── */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+  .empty-state svg { width: 52px; height: 52px; margin-bottom: 14px; opacity: .3; }
+  .empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; }
+
+  /* ── Dashboard extras ── */
+  .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+  .dash-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+  .dash-panel-title { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 12px; }
+  .dash-list { list-style: none; font-size: 13px; }
+  .dash-list li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .dash-list li:last-child { border: none; }
+  .dash-list .lbl { color: var(--text2); }
+  .dash-list .val { font-weight: 600; }
+  .dash-list .val.red   { color: var(--danger); }
+  .dash-list .val.green { color: var(--success); }
+
+  .section-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .section-desc  { font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+  .account-cell  { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text2); }
+</style>
+</head>
+<body>
+
+<!-- ░░ SHELL / TOP BAR ░░ -->
+<div class="shell">
+  <div class="shell-brand">
+    <div class="shell-logo">
+      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1"  y="1"  width="8" height="8" fill="#0078d4"/>
+        <rect x="11" y="1"  width="8" height="8" fill="#50e6ff"/>
+        <rect x="1"  y="11" width="8" height="8" fill="#00a4ef"/>
+        <rect x="11" y="11" width="8" height="8" fill="#ffb900"/>
+      </svg>
+      <div>
+        <div>Attachment Audit</div>
+        <div class="shell-logo-sub">Odoo Compliance Tool</div>
+      </div>
+    </div>
+  </div>
+  <div class="shell-main">
+    <div class="odoo-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText" style="font-size:12px">Checking proxy…</span>
+    </div>
+  </div>
+  <div class="shell-right">
+    <div class="shell-user" onclick="openSettings()">
+      <div class="shell-avatar" id="userInitials">—</div>
+      <span id="userName" style="color:#c8c6c4; font-size:12px">Settings</span>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ APP BODY ░░ -->
+<div class="app-body">
+
+  <!-- ░░ SIDEBAR ░░ -->
+  <div class="sidebar">
+    <div class="sidebar-cmd">
+      <button class="cmd-btn primary" onclick="runAudit()">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+        Fetch from Odoo
+      </button>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-section-label">Views</div>
+
+      <div class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4zM3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707zM2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10zm9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5zm.754-4.246a.389.389 0 0 0-.527-.02L9.373 7.448a.5.5 0 0 0 .655.757l2.354-2.036a.389.389 0 0 0 .032-.527l-.16-.19z"/><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/></svg>
+        Dashboard
+      </div>
+
+      <div class="nav-item" id="nav-missing" onclick="switchTab('missing')">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/><path d="M8 6.5a.5.5 0 0 1 .5.5v1.5H10a.5.5 0 0 1 0 1H8.5V11a.5.5 0 0 1-1 0V9.5H6a.5.5 0 0 1 0-1h1.5V7a.5.5 0 0 1 .5-.5z"/></svg>
+        Missing Attachments
+        <span class="nav-badge zero" id="cnt-missing">0</span>
+      </div>
+
+      <div class="nav-section-label" style="margin-top:8px">Actions</div>
+
+      <div class="nav-item" onclick="exportCSV()">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+        Export CSV
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="cmd-btn" onclick="openSettings()" style="color:var(--text2); font-size:12px">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.892 3.433-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.892-1.64-.901-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.474l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/></svg>
+        Odoo Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- ░░ CONTENT PANEL ░░ -->
+  <div class="content-panel">
+    <div class="loading-bar" id="loadingBar"></div>
+
+    <!-- ── DASHBOARD ── -->
+    <div id="page-dashboard" class="page active">
+      <div class="content-topbar">
+        <span class="content-topbar-title">Dashboard</span>
+        <div class="content-topbar-actions">
+          <button class="topbar-btn primary" onclick="runAudit()">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Run Audit
+          </button>
+        </div>
+      </div>
+
+      <div style="padding:20px 24px; overflow-y:auto;">
+        <div class="section-title">Attachment Audit</div>
+        <div class="section-desc">Identify posted journal entries that are missing supporting attachments in Odoo.</div>
+
+        <div id="dashAlert" class="alert alert-info">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
+          <span>Set your date range in the <strong>Missing Attachments</strong> tab and click <strong>Run Audit</strong> to fetch from Odoo.</span>
+        </div>
+
+        <div class="info-cards">
+          <div class="info-card">
+            <div class="info-card-label">Total Entries Checked</div>
+            <div class="info-card-value blue" id="card-total">—</div>
+            <div class="info-card-sub" id="card-total-sub">Run audit to populate</div>
+          </div>
+          <div class="info-card hl-red">
+            <div class="info-card-label">Missing Attachments</div>
+            <div class="info-card-value red" id="card-missing">—</div>
+            <div class="info-card-sub">No document uploaded in Odoo</div>
+          </div>
+          <div class="info-card hl-green">
+            <div class="info-card-label">Have Attachments</div>
+            <div class="info-card-value green" id="card-ok">—</div>
+            <div class="info-card-sub">At least 1 attachment present</div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-label">Compliance %</div>
+            <div class="info-card-value orange" id="card-pct">—</div>
+            <div class="info-card-sub">
+              <div class="compliance-bar-wrap">
+                <div class="compliance-bar-fill" id="compBar" style="width:0%;background:var(--success)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-grid" id="dashGrid" style="display:none">
+          <div class="dash-panel">
+            <div class="dash-panel-title">Last Audit Summary</div>
+            <ul class="dash-list">
+              <li><span class="lbl">Date Range</span>   <span class="val" id="ds-range">—</span></li>
+              <li><span class="lbl">Scope</span>        <span class="val" id="ds-scope">—</span></li>
+              <li><span class="lbl">Entry Type</span>   <span class="val" id="ds-type">—</span></li>
+              <li><span class="lbl">Accounts Scanned</span><span class="val" id="ds-accs">—</span></li>
+              <li><span class="lbl">Total Entries</span><span class="val" id="ds-total">—</span></li>
+              <li><span class="lbl">Missing</span>      <span class="val red" id="ds-missing">—</span></li>
+              <li><span class="lbl">Compliance</span>   <span class="val green" id="ds-pct">—</span></li>
+            </ul>
+          </div>
+          <div class="dash-panel">
+            <div class="dash-panel-title">How to Fix Missing Entries</div>
+            <ul class="dash-list">
+              <li><span class="lbl">1. Go to <b>Missing Attachments</b> tab</span></li>
+              <li><span class="lbl">2. Click the <b>↗ Open</b> icon on a row</span></li>
+              <li><span class="lbl">3. Odoo opens that journal entry</span></li>
+              <li><span class="lbl">4. Upload the supporting document</span></li>
+              <li><span class="lbl">5. Re-run audit to verify</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MISSING ATTACHMENTS ── -->
+    <div id="page-missing" class="page" style="padding:0; display:none; flex-direction:column;">
+
+      <!-- Topbar -->
+      <div class="content-topbar">
+        <span class="content-topbar-title" id="missingTitle">Missing Attachments</span>
+        <div class="content-topbar-actions">
+          <button class="topbar-btn" onclick="runAudit()">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Re-fetch
+          </button>
+          <div class="topbar-sep"></div>
+          <button class="topbar-btn primary" onclick="exportCSV()">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label class="filter-label">From</label>
+          <input type="date" class="fl-input" id="dateFrom" style="width:138px" />
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">To</label>
+          <input type="date" class="fl-input" id="dateTo" style="width:138px" />
+        </div>
+        <div class="filter-group" style="gap:4px">
+          <button class="period-btn" onclick="setPeriod('today',this)">Today</button>
+          <button class="period-btn" onclick="setPeriod('thisWeek',this)">This Week</button>
+          <button class="period-btn" onclick="setPeriod('thisMonth',this)">This Month</button>
+          <button class="period-btn" onclick="setPeriod('lastMonth',this)">Last Month</button>
+          <button class="period-btn" onclick="setPeriod('thisYear',this)">This Year</button>
+        </div>
+        <div class="filter-sep"></div>
+        <div class="filter-group">
+          <label class="filter-label">Scope</label>
+          <select class="fl-select" id="accountScope" style="width:155px">
+            <option value="expense">Expense Accounts</option>
+            <option value="all_pl">All P&amp;L Accounts</option>
+            <option value="all">All Accounts</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Type</label>
+          <select class="fl-select" id="entryType" style="width:155px">
+            <option value="entry">Journal Entries</option>
+            <option value="in_invoice">Vendor Bills</option>
+            <option value="all">All Types</option>
+          </select>
+        </div>
+        <div style="margin-left:auto">
+          <input type="text" class="fl-input" id="searchBox" placeholder="🔍  Search…" style="width:220px" oninput="applyFilter()" />
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div style="flex:1; overflow-y:auto; padding:12px 16px 0;">
+        <div class="table-wrap" id="tableWrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="sno">#</th>
+                <th onclick="sortBy('entry_no')">Entry No.</th>
+                <th onclick="sortBy('date')">Date</th>
+                <th onclick="sortBy('type_label')">Type</th>
+                <th onclick="sortBy('journal')">Journal</th>
+                <th onclick="sortBy('partner')">Partner</th>
+                <th onclick="sortBy('ref')">Ref / Narration</th>
+                <th onclick="sortBy('accounts_csv')">Account(s)</th>
+                <th onclick="sortBy('amount')" style="text-align:right">Amount (₹)</th>
+                <th style="width:56px; text-align:center">Open</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+          <div id="emptyState" class="empty-state" style="display:none">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/></svg>
+            <h3 id="emptyTitle">No Data Yet</h3>
+            <p id="emptyDesc">Select a date range and click <strong>Fetch from Odoo</strong>.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <span id="pageInfo">—</span>
+        <div class="page-btns" id="pageBtns"></div>
+      </div>
+    </div>
+
+  </div><!-- /content-panel -->
+</div><!-- /app-body -->
+
+<!-- ░░ SETTINGS MODAL ░░ -->
+<div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚙ Odoo Connection Settings</span>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="modalAlert"></div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Odoo URL</label>
+          <input type="url" class="form-input" id="cfg-url" placeholder="https://yourcompany.odoo.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Database</label>
+          <input type="text" class="form-input" id="cfg-db" placeholder="your-db" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username (Email)</label>
+          <input type="email" class="form-input" id="cfg-user" placeholder="admin@company.com" />
+        </div>
+        <div class="form-group full">
+          <label class="form-label">API Key / Password</label>
+          <input type="password" class="form-input" id="cfg-key" placeholder="Odoo API key or login password" />
+          <span class="form-hint">Odoo → Settings → Technical → API Keys</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="topbar-btn" onclick="closeSettings()">Cancel</button>
+      <button class="topbar-btn" id="testBtn" onclick="testConnection()">Test Connection</button>
+      <button class="topbar-btn primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────
+const PROXY    = 'http://localhost:3002';
+const PAGE_SZ  = 100;
+
+// ── State ─────────────────────────────────────────────────────
+let allData      = [];
+let filtered     = [];
+let sortCol      = 'date';
+let sortDir      = -1;
+let page         = 1;
+let odooBaseUrl  = '';
+let lastMeta     = {};
+
+// ── Boot ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  setDefaultDates();
+  restoreState();
+  pingProxy();
+});
+
+function setDefaultDates() {
+  const t = new Date();
+  const y = t.getFullYear();
+  const m = String(t.getMonth()+1).padStart(2,'0');
+  const d = String(t.getDate()).padStart(2,'0');
+  document.getElementById('dateFrom').value = `${y}-${m}-01`;
+  document.getElementById('dateTo').value   = `${y}-${m}-${d}`;
+}
+
+// ── Proxy ping ────────────────────────────────────────────────
+function pingProxy() {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className = 'status-dot connecting';
+  text.textContent = 'Connecting…';
+  fetch(`${PROXY}/health`)
+    .then(r => r.json())
+    .then(() => {
+      dot.className = 'status-dot connected';
+      text.textContent = 'Proxy Online';
+      // also load settings for display
+      fetch(`${PROXY}/api/settings`).then(r=>r.json()).then(applySettingsUI).catch(()=>{});
+    })
+    .catch(() => {
+      dot.className = 'status-dot';
+      text.textContent = 'Proxy Offline — run: node attachment-server.js';
+      toast('Proxy offline. Open terminal and run: node attachment-server.js', 'error');
+    });
+}
+
+function applySettingsUI(s) {
+  odooBaseUrl = s.url || '';
+  if (s.username) {
+    const parts    = (s.username || '').split('@')[0].split('.');
+    const initials = parts.map(p => (p[0]||'').toUpperCase()).join('').slice(0,2) || '—';
+    document.getElementById('userInitials').textContent = initials;
+    document.getElementById('userName').textContent     = parts.map(p => p.charAt(0).toUpperCase()+p.slice(1)).join(' ');
+  }
+  if (s.url) {
+    try {
+      const host = new URL(s.url).hostname.split('.')[0];
+      document.getElementById('statusText').textContent = `Connected · ${host}`;
+    } catch(e){}
+  }
+}
+
+// ── Tab switch ────────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById('page-'+id);
+  if (pg) { pg.classList.add('active'); pg.style.display = id === 'missing' ? 'flex' : 'block'; }
+  const nv = document.getElementById('nav-'+id);
+  if (nv) nv.classList.add('active');
+}
+
+// ── Quick date shortcuts ──────────────────────────────────────
+function setPeriod(p, btn) {
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const now   = new Date();
+  const y     = now.getFullYear();
+  const m     = now.getMonth();
+  const d     = now.getDate();
+  const pad   = n => String(n).padStart(2,'0');
+  const ymd   = dt => `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+  let from, to;
+  if (p === 'today') {
+    from = to = ymd(now);
+  } else if (p === 'thisWeek') {
+    const mon = new Date(now); mon.setDate(d - ((now.getDay()||7)-1));
+    from = ymd(mon); to = ymd(now);
+  } else if (p === 'thisMonth') {
+    from = `${y}-${pad(m+1)}-01`; to = ymd(now);
+  } else if (p === 'lastMonth') {
+    const lm = new Date(y, m, 0);
+    from = `${lm.getFullYear()}-${pad(lm.getMonth()+1)}-01`;
+    to   = ymd(lm);
+  } else if (p === 'thisYear') {
+    from = `${y}-01-01`; to = ymd(now);
+  }
+  document.getElementById('dateFrom').value = from;
+  document.getElementById('dateTo').value   = to;
+}
+
+// ── Main audit call ───────────────────────────────────────────
+async function runAudit() {
+  const dateFrom     = document.getElementById('dateFrom').value;
+  const dateTo       = document.getElementById('dateTo').value;
+  const accountScope = document.getElementById('accountScope').value;
+  const entryType    = document.getElementById('entryType').value;
+
+  if (!dateFrom || !dateTo) { toast('Please select a date range', 'error'); return; }
+  if (dateFrom > dateTo)    { toast('From date must be before To date', 'error'); return; }
+
+  setLoading(true);
+  setDashAlert('Fetching from Odoo — this may take a moment…', 'info');
+
+  try {
+    const r = await fetch(`${PROXY}/api/sync/missing-attachments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dateFrom, dateTo, accountScope, entryType })
+    });
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.error || 'Sync failed');
+
+    allData  = res.data || [];
+    filtered = [...allData];
+    page     = 1;
+
+    lastMeta = {
+      total: res.total || 0, missing: res.missing || 0,
+      withAtt: res.with_attachment || 0, accs: res.accounts_checked || 0,
+      dateFrom, dateTo, accountScope, entryType
+    };
+
+    updateDash(lastMeta);
+    renderTable();
+    saveState();
+
+    const badge = document.getElementById('cnt-missing');
+    badge.textContent = res.missing || 0;
+    badge.className   = `nav-badge ${res.missing > 0 ? '' : 'zero'}`;
+
+    toast(res.missing === 0
+      ? `✅ All ${res.total} entries are compliant!`
+      : `⚠ ${res.missing} of ${res.total} entries missing attachments`,
+      res.missing === 0 ? 'success' : 'error');
+
+    if (allData.length > 0) switchTab('missing');
+
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+    setDashAlert('Sync failed: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+function updateDash(m) {
+  const pct = m.total > 0 ? Math.round((m.withAtt / m.total) * 100) : 0;
+  document.getElementById('card-total').textContent   = m.total.toLocaleString('en-IN');
+  document.getElementById('card-missing').textContent = m.missing.toLocaleString('en-IN');
+  document.getElementById('card-ok').textContent      = m.withAtt.toLocaleString('en-IN');
+  document.getElementById('card-pct').textContent     = pct + '%';
+  document.getElementById('card-total-sub').textContent = `${m.accs} accounts scanned`;
+  const bar = document.getElementById('compBar');
+  bar.style.width      = pct + '%';
+  bar.style.background = pct >= 90 ? 'var(--success)' : pct >= 60 ? 'var(--accent-yellow)' : 'var(--danger)';
+
+  const scopeLabel = { expense:'Expense Accounts', all_pl:'All P&L Accounts', all:'All Accounts' };
+  const typeLabel  = { entry:'Journal Entries', in_invoice:'Vendor Bills', all:'All Types' };
+  document.getElementById('ds-range').textContent   = `${m.dateFrom}  →  ${m.dateTo}`;
+  document.getElementById('ds-scope').textContent   = scopeLabel[m.accountScope] || m.accountScope;
+  document.getElementById('ds-type').textContent    = typeLabel[m.entryType]    || m.entryType;
+  document.getElementById('ds-accs').textContent    = m.accs;
+  document.getElementById('ds-total').textContent   = m.total;
+  document.getElementById('ds-missing').textContent = m.missing;
+  document.getElementById('ds-pct').textContent     = pct + '%';
+  document.getElementById('dashGrid').style.display = 'grid';
+
+  document.getElementById('missingTitle').textContent = `Missing Attachments (${m.missing} of ${m.total})`;
+
+  setDashAlert(
+    m.missing === 0
+      ? `✅ All <strong>${m.total}</strong> entries have attachments — fully compliant for this period.`
+      : `⚠ <strong>${m.missing}</strong> of <strong>${m.total}</strong> entries are missing attachments (${pct}% compliant). Switch to the <strong>Missing Attachments</strong> tab to review.`,
+    m.missing === 0 ? 'success' : 'warning'
+  );
+}
+
+function setDashAlert(msg, type) {
+  const el = document.getElementById('dashAlert');
+  el.className = `alert alert-${type}`;
+  el.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" style="width:15px;height:15px;flex-shrink:0;margin-top:1px"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg><span>${msg}</span>`;
+}
+
+// ── Table ─────────────────────────────────────────────────────
+function applyFilter() {
+  const q = (document.getElementById('searchBox').value || '').toLowerCase().trim();
+  filtered = q
+    ? allData.filter(r => ['entry_no','partner','ref','narration','journal','accounts_csv']
+        .some(k => (r[k]||'').toLowerCase().includes(q)))
+    : [...allData];
+  page = 1;
+  renderTable();
+}
+
+function sortBy(col) {
+  sortDir = sortCol === col ? -sortDir : 1;
+  sortCol = col;
+  document.querySelectorAll('.data-table th').forEach(th => th.classList.remove('asc','desc'));
+  const thIdx = { entry_no:1, date:2, type_label:3, journal:4, partner:5, ref:6, accounts_csv:7, amount:8 };
+  const ths   = document.querySelectorAll('.data-table th');
+  if (thIdx[col]) ths[thIdx[col]].classList.add(sortDir === 1 ? 'asc' : 'desc');
+  filtered.sort((a,b) => {
+    const va = a[col] ?? '', vb = b[col] ?? '';
+    return typeof va === 'number' ? sortDir*(va-vb) : sortDir*String(va).localeCompare(String(vb));
+  });
+  page = 1;
+  renderTable();
+}
+
+function renderTable() {
+  const tbody   = document.getElementById('tbody');
+  const empty   = document.getElementById('emptyState');
+  const info    = document.getElementById('pageInfo');
+  const btns    = document.getElementById('pageBtns');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    const hadData = allData.length > 0;
+    document.getElementById('emptyTitle').textContent = hadData ? '🎉 All Compliant!' : 'No Data Yet';
+    document.getElementById('emptyDesc').textContent  = hadData
+      ? 'Every entry in this range has at least one attachment.'
+      : 'Select a date range and click Fetch from Odoo.';
+    info.textContent = 'No records'; btns.innerHTML = ''; return;
+  }
+  empty.style.display = 'none';
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SZ);
+  if (page > totalPages) page = totalPages;
+  const start = (page-1)*PAGE_SZ;
+  const slice = filtered.slice(start, start+PAGE_SZ);
+
+  tbody.innerHTML = slice.map((r,i) => {
+    const badgeCls = { 'Journal Entry':'badge-entry','Vendor Bill':'badge-bill','Customer Invoice':'badge-other','Vendor Credit':'badge-credit' }[r.type_label] || 'badge-other';
+    const link = odooBaseUrl
+      ? `${odooBaseUrl.replace(/\/$/,'')}/web#id=${r.odoo_id}&model=account.move&view_type=form`
+      : `javascript:void(0)`;
+    const amt = (r.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+    return `
+      <tr>
+        <td class="sno">${start+i+1}</td>
+        <td><strong style="color:var(--primary);font-size:13px">${x(r.entry_no)}</strong></td>
+        <td style="white-space:nowrap;font-size:12px">${r.date||''}</td>
+        <td><span class="badge ${badgeCls}">${x(r.type_label)}</span></td>
+        <td style="font-size:12px;white-space:nowrap">${x(r.journal)}</td>
+        <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="${x(r.partner)}">${x(r.partner)||'—'}</td>
+        <td style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2)" title="${x(r.ref||r.narration)}">${x(r.ref||r.narration)||'—'}</td>
+        <td class="account-cell" title="${x(r.accounts_csv)}">${x(r.accounts_csv)||'—'}</td>
+        <td class="amt">${amt}</td>
+        <td style="text-align:center">
+          <a class="icon-btn" href="${link}" target="_blank" title="Open in Odoo">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/><path d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg>
+          </a>
+        </td>
+      </tr>`;
+  }).join('');
+
+  info.textContent = `Showing ${start+1}–${Math.min(start+PAGE_SZ,filtered.length)} of ${filtered.length} records`;
+  renderPagination(totalPages);
+}
+
+function renderPagination(total) {
+  const btns = document.getElementById('pageBtns');
+  const pages = [];
+  if (total <= 7) { for(let i=1;i<=total;i++) pages.push(i); }
+  else {
+    pages.push(1);
+    if (page > 3) pages.push('…');
+    for(let i=Math.max(2,page-1);i<=Math.min(total-1,page+1);i++) pages.push(i);
+    if (page < total-2) pages.push('…');
+    pages.push(total);
+  }
+  btns.innerHTML =
+    `<button class="page-btn" onclick="goPage(${page-1})" ${page===1?'disabled':''}>‹</button>` +
+    pages.map(p => p==='…'
+      ? `<button class="page-btn" style="cursor:default;pointer-events:none">…</button>`
+      : `<button class="page-btn ${p===page?'active':''}" onclick="goPage(${p})">${p}</button>`
+    ).join('') +
+    `<button class="page-btn" onclick="goPage(${page+1})" ${page===total?'disabled':''}>›</button>`;
+}
+
+function goPage(p) {
+  const total = Math.ceil(filtered.length/PAGE_SZ);
+  if (p<1||p>total) return;
+  page = p;
+  renderTable();
+  document.getElementById('tableWrap').scrollTop = 0;
+}
+
+function x(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Export CSV ────────────────────────────────────────────────
+function exportCSV() {
+  if (!filtered.length) { toast('No data to export','error'); return; }
+  const cols = ['S.No','Entry No.','Date','Type','Journal','Partner','Reference','Narration','Account(s)','Amount (INR)','Odoo ID'];
+  const rows = filtered.map((r,i) => [i+1,r.entry_no,r.date,r.type_label,r.journal,r.partner,r.ref,r.narration,r.accounts_csv,r.amount,r.odoo_id]);
+  const csv  = [cols,...rows].map(row => row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a    = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'})),
+    download: `missing_attachments_${lastMeta.dateFrom||'export'}_${lastMeta.dateTo||''}.csv`
+  });
+  a.click();
+  toast(`Exported ${filtered.length} records`, 'success');
+}
+
+// ── Settings modal ────────────────────────────────────────────
+function openSettings() {
+  fetch(`${PROXY}/api/settings`).then(r=>r.json()).then(s => {
+    document.getElementById('cfg-url').value  = s.url      || '';
+    document.getElementById('cfg-db').value   = s.db       || '';
+    document.getElementById('cfg-user').value = s.username || '';
+    document.getElementById('cfg-key').value  = s.apiKey   || '';
+  }).catch(()=>{});
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+  document.getElementById('modalAlert').innerHTML = '';
+}
+async function saveSettings() {
+  const body = {
+    url:      document.getElementById('cfg-url').value.trim(),
+    db:       document.getElementById('cfg-db').value.trim(),
+    username: document.getElementById('cfg-user').value.trim(),
+    apiKey:   document.getElementById('cfg-key').value.trim()
+  };
+  await fetch(`${PROXY}/api/settings`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  applySettingsUI(body);
+  toast('Settings saved','success');
+  closeSettings();
+}
+async function testConnection() {
+  const btn = document.getElementById('testBtn');
+  btn.textContent = 'Testing…'; btn.disabled = true;
+  const body = {
+    url:      document.getElementById('cfg-url').value.trim(),
+    db:       document.getElementById('cfg-db').value.trim(),
+    username: document.getElementById('cfg-user').value.trim(),
+    apiKey:   document.getElementById('cfg-key').value.trim()
+  };
+  try {
+    const r   = await fetch(`${PROXY}/api/test`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const res = await r.json();
+    document.getElementById('modalAlert').innerHTML =
+      `<div class="alert alert-${res.ok?'success':'error'}">${res.ok ? '✅ '+res.note : '❌ '+res.error}</div>`;
+    if (res.ok) document.getElementById('statusDot').className = 'status-dot connected';
+  } catch(e) {
+    document.getElementById('modalAlert').innerHTML =
+      `<div class="alert alert-error">❌ Cannot reach proxy at ${PROXY} — is the server running?</div>`;
+  }
+  btn.textContent = 'Test Connection'; btn.disabled = false;
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function setLoading(on) { document.getElementById('loadingBar').classList.toggle('active', on); }
+
+function toast(msg, type='info') {
+  const el = Object.assign(document.createElement('div'), { className:`toast ${type}`, textContent: msg });
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('attAudit', JSON.stringify({
+      data: allData, meta: lastMeta,
+      df: document.getElementById('dateFrom').value,
+      dt: document.getElementById('dateTo').value,
+      sc: document.getElementById('accountScope').value,
+      et: document.getElementById('entryType').value
+    }));
+  } catch(e){}
+}
+
+function restoreState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('attAudit')||'null');
+    if (!s) return;
+    allData  = s.data || [];
+    filtered = [...allData];
+    lastMeta = s.meta || {};
+    if (s.df) document.getElementById('dateFrom').value = s.df;
+    if (s.dt) document.getElementById('dateTo').value   = s.dt;
+    if (s.sc) document.getElementById('accountScope').value = s.sc;
+    if (s.et) document.getElementById('entryType').value    = s.et;
+    if (lastMeta.total) updateDash(lastMeta);
+    const badge = document.getElementById('cnt-missing');
+    badge.textContent = allData.length;
+    badge.className   = `nav-badge ${allData.length>0?'':'zero'}`;
+    renderTable();
+  } catch(e){}
+}
+
+// Ctrl+R → run audit
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key==='r') { e.preventDefault(); runAudit(); }
+});
+</script>
+</body>
+</html>
