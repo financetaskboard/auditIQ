@@ -831,6 +831,11 @@
         Go to <strong>Render → Your Service → Environment</strong> and set:<br>
         <code style="font-size:11px;background:#f3f2f1;padding:2px 6px;border-radius:2px;margin-top:6px;display:inline-block">ODOO_URL &nbsp; ODOO_DB &nbsp; ODOO_USERNAME &nbsp; ODOO_API_KEY</code>
       </div>
+      <!-- Odoo settings -->
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+        <svg viewBox="0 0 16 16" fill="currentColor" style="width:14px;height:14px"><path d="M0 4s0-2 2-2 2 2 2 2-0 2-2 2-2-2-2-2z"/><path d="M8 4s0-2 2-2 2 2 2 2-0 2-2 2-2-2-2-2z"/><path d="M16 4s0-2 2-2 2 2 2 2-0 2-2 2-2-2-2-2z"/></svg>
+        Odoo Connection
+      </div>
       <div class="form-grid">
         <div class="form-group full">
           <label class="form-label">Odoo URL</label>
@@ -850,6 +855,34 @@
           <span class="form-hint">Odoo → Settings → Technical → API Keys</span>
         </div>
       </div>
+      <!-- Firebase settings -->
+      <div style="border-top:1px solid var(--border);margin:16px 0 12px;"></div>
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+        <svg viewBox="0 0 16 16" fill="currentColor" style="width:14px;height:14px;color:#f57c00"><path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/></svg>
+        Firebase (Data Persistence)
+        <span id="fbStatus" style="font-size:11px;font-weight:400;color:var(--text3);margin-left:4px"></span>
+      </div>
+      <div class="alert alert-info" style="font-size:12px;margin-bottom:12px;padding:8px 12px;">
+        Firebase stores your audit data in the cloud so it persists on every refresh and across devices.<br>
+        <strong>On Render:</strong> Add <code style="background:#e8f4fd;padding:1px 5px;border-radius:2px">FIREBASE_DB_URL</code> and <code style="background:#e8f4fd;padding:1px 5px;border-radius:2px">FIREBASE_SECRET</code> as environment variables in your Render dashboard.<br>
+        <strong>Local:</strong> Fill the fields below and click Save.<br>
+        <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--primary);font-weight:600">→ Create a free Firebase project (Spark plan)</a>
+      </div>
+      <div id="cloudFbBanner" style="display:none;padding:8px 12px;background:#fff4ce;border-left:3px solid #ffb900;border-radius:2px;font-size:12px;color:#7a4f00;margin-bottom:12px;">
+        ☁ Cloud mode — add <strong>FIREBASE_DB_URL</strong> and <strong>FIREBASE_SECRET</strong> in Render → Environment
+      </div>
+      <div class="form-grid" id="fbLocalFields">
+        <div class="form-group full">
+          <label class="form-label">Firebase Database URL</label>
+          <input type="url" class="form-input" id="cfg-fbUrl" placeholder="https://your-project-default-rtdb.firebaseio.com" />
+          <span class="form-hint">Firebase Console → Realtime Database → copy the URL shown at top</span>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Firebase Database Secret</label>
+          <input type="password" class="form-input" id="cfg-fbSecret" placeholder="Your database secret" />
+          <span class="form-hint">Firebase Console → Project Settings → Service Accounts → Database Secrets → Show</span>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="topbar-btn" onclick="closeSettings()">Cancel</button>
@@ -863,10 +896,116 @@
 
 <script>
 // ── Config ────────────────────────────────────────────────────
-// Works both locally (localhost:3002) and on Render/cloud
-// because the HTML is served by the same Node.js server.
 const PROXY    = window.location.origin;
 const PAGE_SZ  = 100;
+
+// ══════════════════════════════════════════════════════════════
+// FIREBASE REALTIME DATABASE — Data Persistence Layer
+// Uses REST API (no SDK needed). Falls back to localStorage.
+// ══════════════════════════════════════════════════════════════
+// ── Firebase via server proxy ─────────────────────────────────
+// The Firebase secret stays on the server. The browser never sees it.
+// Server routes: GET /api/db/:key  and  POST /api/db/:key
+let FB_ENABLED = false;  // set to true once server confirms Firebase is configured
+
+async function checkFirebaseStatus() {
+  try {
+    const r = await fetch(`${PROXY}/api/db-status`);
+    const d = await r.json();
+    FB_ENABLED = d.configured === true;
+    const el = document.getElementById('fbStatus');
+    if (el) el.textContent = FB_ENABLED ? '✅ Connected' : '⚠ Not configured';
+    if (FB_ENABLED) console.log('Firebase: configured via server proxy');
+    else            console.log('Firebase: not configured — using localStorage only');
+  } catch(e) {
+    FB_ENABLED = false;
+  }
+}
+
+async function fbSet(path, data) {
+  if (!FB_ENABLED) return;
+  // Strip the "auditiq/" prefix since server adds it
+  const key = path.replace(/^auditiq\//, '');
+  try {
+    setFbIndicator('saving');
+    const r = await fetch(`${PROXY}/api/db/${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    setFbIndicator('ok');
+  } catch(e) {
+    console.error('Firebase write error:', e.message);
+    setFbIndicator('error');
+  }
+}
+
+async function fbGet(path) {
+  if (!FB_ENABLED) return null;
+  const key = path.replace(/^auditiq\//, '');
+  try {
+    const r = await fetch(`${PROXY}/api/db/${encodeURIComponent(key)}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.ok && d.data !== null ? d.data : null;
+  } catch(e) {
+    console.error('Firebase read error:', e.message);
+    return null;
+  }
+}
+
+// Visual indicator in shell bar
+function setFbIndicator(state) {
+  let el = document.getElementById('fbIndicator');
+  if (!el) {
+    el = document.createElement('span');
+    el.id = 'fbIndicator';
+    el.style.cssText = 'font-size:11px;display:flex;align-items:center;gap:4px;color:#8a8886;transition:color .3s';
+    const shell = document.querySelector('.shell-right');
+    if (shell) shell.prepend(el);
+  }
+  if (state === 'saving') {
+    el.innerHTML = '<span style="animation:pulse 1s infinite;display:inline-block;width:7px;height:7px;border-radius:50%;background:#ffb900"></span> Saving…';
+    el.style.color = '#ffb900';
+  } else if (state === 'ok') {
+    el.innerHTML = '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#107c10"></span> Saved';
+    el.style.color = '#8a8886';
+    setTimeout(() => { if (el) el.innerHTML = ''; }, 2500);
+  } else if (state === 'error') {
+    el.innerHTML = '⚠ Sync error';
+    el.style.color = '#a4262c';
+    setTimeout(() => { if (el) el.innerHTML = ''; }, 4000);
+  }
+}
+
+// ── Unified save: Firebase + localStorage fallback ────────────
+async function persistMeta(key, data) {
+  // Always try localStorage first (instant)
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch(e){}
+  // Firebase for cloud persistence (async, non-blocking)
+  await fbSet('auditiq/' + key, data);
+}
+
+async function persistData(key, data) {
+  // localStorage only for data (may hit quota — that's OK, Firebase is the truth)
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch(e){}
+  await fbSet('auditiq/' + key, data);
+}
+
+// ── Load: Firebase first (cloud truth), fall back to localStorage ──
+async function loadPersisted(key) {
+  // Try Firebase
+  const fb = await fbGet('auditiq/' + key);
+  if (fb !== null && fb !== undefined) return fb;
+  // Fall back to localStorage
+  try {
+    const ls = localStorage.getItem(key);
+    return ls ? JSON.parse(ls) : null;
+  } catch(e) { return null; }
+}
+
+
 
 // ── State ─────────────────────────────────────────────────────
 let allData      = [];
@@ -883,13 +1022,29 @@ let syncedPatternFYs   = new Set();
 let syncedDeviationFYs = new Set();
 
 // ── Boot ──────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   setDefaultDates();
   initSidebar();
-  restoreState();
-  restorePatternState();
-  restoreDeviationState();
-  initFYViewLabels();  // init all FY view labels (Missing, Pattern, Deviation)
+  onFYChange();
+  onDFYChange();
+
+  // Step 1: Load settings + check Firebase status in parallel
+  try {
+    const [settingsRes] = await Promise.all([
+      fetch(`${PROXY}/api/settings`).then(r => r.json()).catch(() => ({})),
+      checkFirebaseStatus()   // asks server if Firebase is configured
+    ]);
+    applySettingsUI(settingsRes);
+  } catch(e){}
+
+  // Step 2: Restore all persisted data (Firebase first, localStorage fallback)
+  await Promise.all([
+    restoreState(),
+    restorePatternState(),
+    restoreDeviationState()
+  ]);
+
+  initFYViewLabels();
   pingProxy();
 });
 
@@ -1422,25 +1577,39 @@ let isCloudMode = false;
 function openSettings() {
   fetch(`${PROXY}/api/settings`).then(r=>r.json()).then(s => {
     isCloudMode = !!s.cloudMode;
-    document.getElementById('cfg-url').value  = s.url      || '';
-    document.getElementById('cfg-db').value   = s.db       || '';
-    document.getElementById('cfg-user').value = s.username || '';
-    document.getElementById('cfg-key').value  = s.apiKey   || '';
+    document.getElementById('cfg-url').value      = s.url            || '';
+    document.getElementById('cfg-db').value       = s.db             || '';
+    document.getElementById('cfg-user').value     = s.username       || '';
+    document.getElementById('cfg-key').value      = s.apiKey         || '';
+    document.getElementById('cfg-fbUrl').value    = s.firebaseDbUrl  || '';
+    document.getElementById('cfg-fbSecret').value = s.firebaseSecret || '';
+    // Show Firebase status
+    const fbSt = document.getElementById('fbStatus');
+    if (fbSt) fbSt.textContent = s.firebaseDbUrl ? '✅ Connected' : '⚠ Not configured';
 
-    const cloudBanner = document.getElementById('cloudBanner');
+    const cloudBanner   = document.getElementById('cloudBanner');
+    const cloudFbBanner = document.getElementById('cloudFbBanner');
+    const fbFields      = document.getElementById('fbLocalFields');
     if (s.cloudMode) {
-      cloudBanner.style.display = 'block';
+      cloudBanner.style.display   = 'block';
+      if (cloudFbBanner) cloudFbBanner.style.display = 'block';
+      if (fbFields)      fbFields.style.display      = 'none';
       document.getElementById('cfg-url').disabled  = true;
       document.getElementById('cfg-db').disabled   = true;
       document.getElementById('cfg-user').disabled = true;
       document.getElementById('cfg-key').disabled  = true;
     } else {
-      cloudBanner.style.display = 'none';
+      cloudBanner.style.display   = 'none';
+      if (cloudFbBanner) cloudFbBanner.style.display = 'none';
+      if (fbFields)      fbFields.style.display      = '';
       document.getElementById('cfg-url').disabled  = false;
       document.getElementById('cfg-db').disabled   = false;
       document.getElementById('cfg-user').disabled = false;
       document.getElementById('cfg-key').disabled  = false;
     }
+    // Show current Firebase status
+    const fbStatusEl = document.getElementById('fbStatus');
+    if (fbStatusEl) fbStatusEl.textContent = FB_ENABLED ? '✅ Connected' : '⚠ Not configured';
   }).catch(()=>{});
   document.getElementById('settingsOverlay').classList.add('open');
 }
@@ -1454,13 +1623,17 @@ async function saveSettings() {
     closeSettings(); return;
   }
   const body = {
-    url:      document.getElementById('cfg-url').value.trim(),
-    db:       document.getElementById('cfg-db').value.trim(),
-    username: document.getElementById('cfg-user').value.trim(),
-    apiKey:   document.getElementById('cfg-key').value.trim()
+    url:            document.getElementById('cfg-url').value.trim(),
+    db:             document.getElementById('cfg-db').value.trim(),
+    username:       document.getElementById('cfg-user').value.trim(),
+    apiKey:         document.getElementById('cfg-key').value.trim(),
+    firebaseDbUrl:  document.getElementById('cfg-fbUrl').value.trim(),
+    firebaseSecret: document.getElementById('cfg-fbSecret').value.trim()
   };
   await fetch(`${PROXY}/api/settings`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   applySettingsUI(body);
+  // Re-check Firebase status after settings saved
+  await checkFirebaseStatus();
   toast('Settings saved','success');
   closeSettings();
 }
@@ -1496,37 +1669,26 @@ function toast(msg, type='info') {
 }
 
 function saveState() {
-  // Save metadata separately (tiny — never hits quota)
-  try {
-    localStorage.setItem('attAuditMeta', JSON.stringify({
-      meta: lastMeta,
-      df: document.getElementById('dateFrom').value,
-      dt: document.getElementById('dateTo').value,
-      sc: document.getElementById('accountScope').value,
-      et: document.getElementById('entryType').value,
-      vfy: document.getElementById('viewFY')?.value || 'all',
-      syncedFYs: [...syncedFYs]   // track which FYs have been fetched
-    }));
-  } catch(e){}
-  // Save data separately — may fail if too large, that's OK
-  try {
-    localStorage.setItem('attAuditData', JSON.stringify(allData));
-  } catch(e) {
-    // Quota exceeded — data won't persist on refresh but FY list still will
-    console.warn('Could not cache data (quota), but metadata saved');
-  }
+  const meta = {
+    meta: lastMeta,
+    df:  document.getElementById('dateFrom').value,
+    dt:  document.getElementById('dateTo').value,
+    sc:  document.getElementById('accountScope').value,
+    et:  document.getElementById('entryType').value,
+    vfy: document.getElementById('viewFY')?.value || 'all',
+    syncedFYs: [...syncedFYs]
+  };
+  persistMeta('attAuditMeta', meta);
+  persistData('attAuditData', allData);
 }
 
-function restoreState() {
+async function restoreState() {
   try {
-    // Load metadata (always small, always available)
-    const m = JSON.parse(localStorage.getItem('attAuditMeta')||'null');
-    // Load data (may be missing if quota was exceeded last session)
-    const rawData = (() => { try { return JSON.parse(localStorage.getItem('attAuditData')||'null'); } catch(e){return null;} })();
-
+    const m = await loadPersisted('attAuditMeta');
     if (!m) return;
 
-    allData  = rawData || [];
+    const rawData = await loadPersisted('attAuditData');
+    allData  = Array.isArray(rawData) ? rawData : [];
     filtered = [...allData];
     lastMeta = m.meta || {};
 
@@ -1535,7 +1697,6 @@ function restoreState() {
     if (m.sc) document.getElementById('accountScope').value = m.sc;
     if (m.et) document.getElementById('entryType').value    = m.et;
 
-    // Restore synced FYs — these are always reliable even if data was lost
     if (m.syncedFYs) m.syncedFYs.forEach(fy => syncedFYs.add(fy));
 
     if (lastMeta.total) updateDash(lastMeta);
@@ -1543,7 +1704,6 @@ function restoreState() {
     badge.textContent = allData.length;
     badge.className   = `nav-badge ${allData.length>0?'':'zero'}`;
 
-    // Populate from BOTH synced FYs (reliable) AND data dates (fills gaps)
     populateViewFYFromSynced('viewFY', syncedFYs, allData.map(r => r.date));
     if (m.vfy) document.getElementById('viewFY').value = m.vfy;
     applyFYView();
@@ -1797,38 +1957,32 @@ function onDFYChange() {
 let pSortCol = 'gaps'; let pSortDir = -1;
 
 function savePatternState() {
-  // Save small metadata always
-  try {
-    localStorage.setItem('attPatternMeta', JSON.stringify({
-      pViewFY: document.getElementById('pViewFY')?.value || 'all',
-      scope: document.getElementById('pScope')?.value || 'expense',
-      minMonths: document.getElementById('pMinMonths')?.value || '2',
-      syncedFYs: [...syncedPatternFYs]
-    }));
-  } catch(e){}
-  // Save full data separately (may fail due to quota)
-  try {
-    localStorage.setItem('attPatternData', JSON.stringify(patternData));
-  } catch(e) { console.warn('Pattern data too large to cache'); }
+  const meta = {
+    pViewFY:   document.getElementById('pViewFY')?.value   || 'all',
+    scope:     document.getElementById('pScope')?.value    || 'expense',
+    minMonths: document.getElementById('pMinMonths')?.value || '2',
+    syncedFYs: [...syncedPatternFYs]
+  };
+  persistMeta('attPatternMeta', meta);
+  persistData('attPatternData', patternData);
 }
 
-function restorePatternState() {
+async function restorePatternState() {
   try {
-    const m = JSON.parse(localStorage.getItem('attPatternMeta')||'null');
-    const d = (() => { try { return JSON.parse(localStorage.getItem('attPatternData')||'null'); } catch(e){return null;} })();
+    const m = await loadPersisted('attPatternMeta');
     if (!m) return;
-    if (d?.vendors?.length) patternData = d;
+    const d = await loadPersisted('attPatternData');
 
     if (m.syncedFYs) m.syncedFYs.forEach(fy => syncedPatternFYs.add(fy));
-    if (m.scope) document.getElementById('pScope').value = m.scope;
+    if (m.scope)     document.getElementById('pScope').value     = m.scope;
     if (m.minMonths) document.getElementById('pMinMonths').value = m.minMonths;
 
-    if (!patternData?.vendors?.length) {
-      // Data not cached but we know which FYs were synced
+    if (!d?.vendors?.length) {
       populateViewFYFromSynced('pViewFY', syncedPatternFYs, []);
       if (m.pViewFY) document.getElementById('pViewFY').value = m.pViewFY;
       return;
     }
+    patternData = d;
 
     const badge = document.getElementById('cnt-pattern');
     badge.textContent = patternData.vendors_with_gaps || 0;
@@ -1847,7 +2001,6 @@ function restorePatternState() {
     renderPattern();
   } catch(e){ console.error('restorePatternState:', e); }
 }
-
 function sortPattern(col) {
   if (pSortCol === col) pSortDir *= -1; else { pSortCol = col; pSortDir = -1; }
   renderPattern();
@@ -2017,15 +2170,13 @@ async function runDeviation() {
     badge.className   = `nav-badge ${(res.total_deviations||0)>0?'':'zero'}`;
 
     // Save to localStorage
-    try {
-      localStorage.setItem('attDeviationMeta', JSON.stringify({
-        fy: document.getElementById('dViewFY')?.value||'all',
-        scope: document.getElementById('dScope')?.value||'expense',
-        minMonths: minMonthsToEstablish,
-        syncedFYs: [...syncedDeviationFYs]
-      }));
-    } catch(e){}
-    try { localStorage.setItem('attDeviationData', JSON.stringify(devData)); } catch(e){ console.warn('Deviation data too large to cache'); }
+    persistMeta('attDeviationMeta', {
+      fy:        document.getElementById('dViewFY')?.value  || 'all',
+      scope:     document.getElementById('dScope')?.value   || 'expense',
+      minMonths: minMonthsToEstablish,
+      syncedFYs: [...syncedDeviationFYs]
+    });
+    persistData('attDeviationData', devData);
 
     renderDeviation();
     toast(res.total_deviations>0
@@ -2038,23 +2189,24 @@ async function runDeviation() {
   }
 }
 
-function restoreDeviationState() {
+async function restoreDeviationState() {
   try {
-    const m = JSON.parse(localStorage.getItem('attDeviationMeta')||'null');
-    const d = (() => { try { return JSON.parse(localStorage.getItem('attDeviationData')||'null'); } catch(e){ return null; } })();
+    const m = await loadPersisted('attDeviationMeta');
     if (!m) return;
+    const d = await loadPersisted('attDeviationData');
 
     if (m.syncedFYs) m.syncedFYs.forEach(fy => syncedDeviationFYs.add(fy));
     if (m.scope)     document.getElementById('dScope').value     = m.scope;
     if (m.minMonths) document.getElementById('dMinMonths').value = m.minMonths;
 
-    if (!d?.length) {
+    if (!Array.isArray(d) || !d.length) {
       populateViewFYFromSynced('dViewFY', syncedDeviationFYs, []);
       if (m.fy) document.getElementById('dViewFY').value = m.fy;
       return;
     }
     devData     = d;
     devFiltered = [...devData];
+
     const cnt = document.getElementById('cnt-deviation');
     cnt.textContent = devData.length;
     cnt.className   = `nav-badge ${devData.length>0?'':'zero'}`;
@@ -2062,6 +2214,7 @@ function restoreDeviationState() {
     document.getElementById('dc-affected').textContent = new Set(devData.map(r=>r.partner_id)).size;
     document.getElementById('deviationCards').style.display = 'block';
     document.getElementById('deviationTitle').textContent = `Account Deviation — ${devData.length} deviations`;
+
     populateViewFYFromSynced('dViewFY', syncedDeviationFYs, devData.map(r => r.date));
     if (m.fy) document.getElementById('dViewFY').value = m.fy;
     applyDeviationFYView();

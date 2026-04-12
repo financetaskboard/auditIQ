@@ -34,10 +34,12 @@ function loadSettings() {
   // Cloud mode — use environment variables set in Render dashboard
   if (IS_CLOUD || process.env.ODOO_URL) {
     return {
-      url:      process.env.ODOO_URL      || '',
-      db:       process.env.ODOO_DB       || '',
-      username: process.env.ODOO_USERNAME || '',
-      apiKey:   process.env.ODOO_API_KEY  || ''
+      url:           process.env.ODOO_URL           || '',
+      db:            process.env.ODOO_DB            || '',
+      username:      process.env.ODOO_USERNAME      || '',
+      apiKey:        process.env.ODOO_API_KEY       || '',
+      firebaseDbUrl: process.env.FIREBASE_DB_URL    || '',
+      firebaseSecret:process.env.FIREBASE_SECRET    || ''
     };
   }
   // Local mode — read from JSON file
@@ -102,7 +104,12 @@ app.get('/health', (req, res) => {
 // ── GET /api/settings ──────────────────────────────────────────
 app.get('/api/settings', (req, res) => {
   const s = loadSettings();
-  res.json({ ...s, apiKey: s.apiKey ? '••••••••' : '', cloudMode: IS_CLOUD });
+  res.json({
+    ...s,
+    apiKey:         s.apiKey          ? '••••••••' : '',
+    firebaseSecret: s.firebaseSecret  ? '••••••••' : '',
+    cloudMode: IS_CLOUD
+  });
 });
 
 // ── POST /api/settings ─────────────────────────────────────────
@@ -113,7 +120,8 @@ app.post('/api/settings', (req, res) => {
     }
     const s = loadSettings();
     const incoming = req.body;
-    if (incoming.apiKey === '••••••••') delete incoming.apiKey;
+    if (incoming.apiKey         === '••••••••') delete incoming.apiKey;
+    if (incoming.firebaseSecret === '••••••••') delete incoming.firebaseSecret;
     saveSettings({ ...s, ...incoming });
     res.json({ ok: true });
   } catch (e) {
@@ -684,6 +692,71 @@ app.post('/api/sync/account-deviation', async (req, res) => {
     console.error('❌ Account deviation error:', e.message);
     res.status(400).json({ ok:false, error:e.message });
   }
+});
+
+// ── Firebase REST proxy ───────────────────────────────────────
+// All Firebase access goes through here so the secret never reaches the browser.
+// Requires env vars: FIREBASE_DB_URL and FIREBASE_SECRET
+
+function fbUrl(key) {
+  const s = loadSettings();
+  const base = (s.firebaseDbUrl || '').replace(/\/+$/, '');
+  const secret = s.firebaseSecret || '';
+  if (!base || !secret) return null;
+  return { url: `${base}/auditiq/${key}.json?auth=${secret}` };
+}
+
+// GET /api/db/:key
+app.get('/api/db/:key', async (req, res) => {
+  const fb = fbUrl(req.params.key);
+  if (!fb) return res.json({ ok: true, data: null, source: 'no-firebase' });
+  try {
+    const r = await fetch(fb.url);
+    if (!r.ok) throw new Error('Firebase ' + r.status);
+    const data = await r.json();
+    res.json({ ok: true, data, source: 'firebase' });
+  } catch(e) {
+    console.error('Firebase read error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST /api/db/:key  (body = JSON to store)
+app.post('/api/db/:key', async (req, res) => {
+  const fb = fbUrl(req.params.key);
+  if (!fb) return res.json({ ok: true, source: 'no-firebase', note: 'Firebase not configured' });
+  try {
+    const r = await fetch(fb.url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
+    });
+    if (!r.ok) throw new Error('Firebase ' + r.status);
+    res.json({ ok: true, source: 'firebase' });
+  } catch(e) {
+    console.error('Firebase write error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// DELETE /api/db/:key
+app.delete('/api/db/:key', async (req, res) => {
+  const fb = fbUrl(req.params.key);
+  if (!fb) return res.json({ ok: true, source: 'no-firebase' });
+  try {
+    const r = await fetch(fb.url, { method: 'DELETE' });
+    if (!r.ok) throw new Error('Firebase ' + r.status);
+    res.json({ ok: true, source: 'firebase' });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET /api/db-status  — tells the client if Firebase is configured
+app.get('/api/db-status', (req, res) => {
+  const s = loadSettings();
+  const configured = !!(s.firebaseDbUrl && s.firebaseSecret);
+  res.json({ ok: true, configured, source: configured ? 'firebase' : 'none' });
 });
 
 // ── GET /api/journals — for filter dropdown ────────────────────
