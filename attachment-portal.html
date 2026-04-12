@@ -645,6 +645,7 @@ async function runAudit() {
     lastMeta = {
       total: res.total || 0, missing: res.missing || 0,
       withAtt: res.with_attachment || 0, accs: res.accounts_checked || 0,
+      excluded: res.accounts_excluded || 0,
       dateFrom, dateTo, accountScope, entryType
     };
 
@@ -678,7 +679,7 @@ function updateDash(m) {
   document.getElementById('card-missing').textContent = m.missing.toLocaleString('en-IN');
   document.getElementById('card-ok').textContent      = m.withAtt.toLocaleString('en-IN');
   document.getElementById('card-pct').textContent     = pct + '%';
-  document.getElementById('card-total-sub').textContent = `${m.accs} accounts scanned`;
+  document.getElementById('card-total-sub').textContent = `${m.accs} accounts scanned · ${m.excluded} excluded`;
   const bar = document.getElementById('compBar');
   bar.style.width      = pct + '%';
   bar.style.background = pct >= 90 ? 'var(--success)' : pct >= 60 ? 'var(--accent-yellow)' : 'var(--danger)';
@@ -688,7 +689,7 @@ function updateDash(m) {
   document.getElementById('ds-range').textContent   = `${m.dateFrom}  →  ${m.dateTo}`;
   document.getElementById('ds-scope').textContent   = scopeLabel[m.accountScope] || m.accountScope;
   document.getElementById('ds-type').textContent    = typeLabel[m.entryType]    || m.entryType;
-  document.getElementById('ds-accs').textContent    = m.accs;
+  document.getElementById('ds-accs').textContent    = `${m.accs} (${m.excluded} excluded)`;
   document.getElementById('ds-total').textContent   = m.total;
   document.getElementById('ds-missing').textContent = m.missing;
   document.getElementById('ds-pct').textContent     = pct + '%';

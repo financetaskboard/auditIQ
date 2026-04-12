@@ -176,6 +176,47 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
     const expenseTypes = ['expense', 'expense_direct_cost', 'expense_depreciation'];
     const incomeTypes  = ['income', 'income_other'];
 
+    // ── Excluded accounts (no attachment required for these) ─────
+    // These are system/payroll/tax accounts where supporting docs
+    // are generated automatically or are not applicable.
+    const EXCLUDED_CODES = new Set([
+      '410003', // Bad Debts Written Off
+      '410004', // Bank Charges
+      '410010', // Cleaning & Washing
+      '410013', // Conveyance
+      '410016', // Discount
+      '410017', // Donation U/s 80G (CSR)
+      '410021', // General Expense
+      '410022', // Gratuity
+      '410026', // Interest Expense
+      '410028', // Leave Encashment Expenses
+      '410031', // Motor Car Petrol Expenses
+      '410033', // Performance Incentive/Variable
+      '410038', // Rates and Taxes
+      '410042', // Salary - PF Admin Charges
+      '410044', // Employer Contribution to PF
+      '410046', // Salary Expense
+      '410053', // Diwali Bonus/Gift
+      '410058', // Travelling - Implementation
+      '410060', // Travelling - Sales
+      '410063', // Travelling Expense
+      '410071', // Staff Welfare
+      '410072', // Profit/Loss on Foreign Transaction
+      '410075', // Tax Expenses
+      '410077', // ESI Employer Contribution
+      '410088', // Misc Expenses
+      '410095', // Provision for Investment Write off
+      '410101', // PT Annual Fees
+      '410102', // PF Damages
+      '410103', // Salary Expense-EMG
+      '410104', // Salary Expenses-BT
+      '410106', // Performance Incentive/Variable-EMG
+      '410107', // Employer Contribution to PF-BT
+      '410108', // Salary - PF Admin Charges-BT
+      '410110', // Leave Encashment Expenses-BT
+      '410111', // Gratuity-BT
+    ]);
+
     let accountDomain = [['deprecated', '=', false]];
     if (accountScope === 'expense') {
       accountDomain.push(['account_type', 'in', expenseTypes]);
@@ -184,16 +225,23 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
     }
     // accountScope === 'all' → no account_type filter (all accounts)
 
-    const accounts = await odooCall(session, 'account.account', 'search_read',
+    const allAccounts = await odooCall(session, 'account.account', 'search_read',
       [accountDomain],
       { fields: ['id', 'code', 'name', 'account_type'], limit: 5000 }
     );
+
+    // Filter out excluded accounts
+    const accounts = allAccounts.filter(a => !EXCLUDED_CODES.has((a.code || '').trim()));
+    const excludedCount = allAccounts.length - accounts.length;
+    if (excludedCount > 0) {
+      console.log(`  ⏭  ${excludedCount} accounts excluded (payroll/tax/system accounts)`);
+    }
 
     const accountMap = {};
     accounts.forEach(a => { accountMap[a.id] = a; });
     const accountIds = accounts.map(a => a.id);
 
-    console.log(`  ✅ ${accountIds.length} accounts matched (scope=${accountScope})`);
+    console.log(`  ✅ ${accountIds.length} accounts matched (scope=${accountScope}, excluded=${excludedCount})`);
     if (accountIds.length === 0) {
       return res.json({ ok: true, total: 0, missing: 0, with_attachment: 0, data: [], accountsChecked: 0 });
     }
@@ -321,6 +369,7 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
       missing:          missing.length,
       with_attachment:  withAtt.length,
       accounts_checked: accountIds.length,
+      accounts_excluded: excludedCount,
       data:             missing
     });
 
