@@ -492,6 +492,103 @@ app.post('/api/sync/vendor-pattern', async (req, res) => {
   }
 });
 
+// ── POST /api/sync/account-deviation ─────────────────────────
+// Per-vendor historical account head analysis.
+// Flags entries where a vendor booked to a different account than usual.
+app.post('/api/sync/account-deviation', async (req, res) => {
+  const s = loadSettings();
+  const { dateFrom, dateTo, accountScope = 'expense', minEntries = 3 } = req.body;
+  if (!dateFrom || !dateTo) return res.status(400).json({ ok: false, error: 'dateFrom and dateTo required' });
+
+  console.log('\n🔍 Account Deviation | ' + dateFrom + ' → ' + dateTo);
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+    const EXCL = new Set(['410003','410004','410010','410013','410016','410017','410021','410022',
+      '410026','410028','410031','410033','410038','410042','410044','410046','410053','410058',
+      '410060','410063','410071','410072','410075','410077','410088','410095','410101','410102',
+      '410103','410104','410106','410107','410108','410110','410111','130003']);
+
+    const expenseTypes = ['expense','expense_direct_cost','expense_depreciation'];
+    const incomeTypes  = ['income','income_other'];
+    let   accountDomain = [['deprecated','=',false]];
+    if (accountScope === 'expense') accountDomain.push(['account_type','in',expenseTypes]);
+    else if (accountScope === 'all_pl') accountDomain.push(['account_type','in',[...expenseTypes,...incomeTypes]]);
+
+    const allAccounts = await odooCall(session,'account.account','search_read',
+      [accountDomain],{ fields:['id','code','name'], limit:5000 });
+    const accountMap = {}; const accountIds = [];
+    allAccounts.forEach(a => { if (!EXCL.has((a.code||'').trim())) { accountMap[a.id]=a; accountIds.push(a.id); } });
+    if (!accountIds.length) return res.json({ ok:true, deviations:[], vendors_checked:0 });
+
+    const bills = await odooCall(session,'account.move','search_read',
+      [[['move_type','in',['in_invoice','in_refund']],['state','=','posted'],
+        ['invoice_date','>=',dateFrom],['invoice_date','<=',dateTo],['partner_id','!=',false]]],
+      { fields:['id','name','ref','narration','invoice_date','partner_id','amount_total'],
+        limit:50000, order:'invoice_date asc', context:{ lang:'en_IN', allowed_company_ids:[] } });
+    if (!bills.length) return res.json({ ok:true, deviations:[], vendors_checked:0 });
+
+    const billIds = bills.map(b => b.id);
+    const linesByBill = {};
+    for (let i = 0; i < billIds.length; i += 2000) {
+      const lines = await odooCall(session,'account.move.line','search_read',
+        [[['move_id','in',billIds.slice(i,i+2000)],['account_id','in',accountIds]]],
+        { fields:['move_id','account_id','debit','credit'], limit:200000 });
+      lines.forEach(l => {
+        const bid = l.move_id?.[0]; const aid = l.account_id?.[0]; if (!bid||!aid) return;
+        if (!linesByBill[bid]) linesByBill[bid] = [];
+        linesByBill[bid].push({ account_id:aid,
+          account_code: accountMap[aid]?.code||'', account_name: accountMap[aid]?.name||l.account_id?.[1]||'',
+          amount: Math.abs((l.debit||0)-(l.credit||0)) });
+      });
+    }
+
+    // Build dominant account per vendor
+    const vendorAccounts = {}; const vendorNames = {};
+    bills.forEach(b => {
+      const pid = b.partner_id?.[0]; if (!pid) return;
+      vendorNames[pid] = b.partner_id?.[1]||'Unknown';
+      if (!linesByBill[b.id]?.length) return;
+      const primary = linesByBill[b.id].reduce((top,l) => l.amount>(top?.amount||0)?l:top, null);
+      if (!primary) return;
+      if (!vendorAccounts[pid]) vendorAccounts[pid] = {};
+      vendorAccounts[pid][primary.account_id] = (vendorAccounts[pid][primary.account_id]||0)+1;
+    });
+
+    const vendorDominant = {};
+    Object.entries(vendorAccounts).forEach(([pid,accs]) => {
+      const total = Object.values(accs).reduce((s,c)=>s+c,0);
+      if (total < minEntries) return;
+      const domId = Object.keys(accs).reduce((a,b)=>accs[a]>accs[b]?a:b);
+      vendorDominant[pid] = { account_id:Number(domId), account_code:accountMap[domId]?.code||'',
+        account_name:accountMap[domId]?.name||'', count:accs[domId], total, pct:Math.round(accs[domId]/total*100) };
+    });
+
+    const deviations = [];
+    bills.forEach(b => {
+      const pid = b.partner_id?.[0]; if (!pid) return;
+      const dom = vendorDominant[pid]; if (!dom) return;
+      if (!linesByBill[b.id]?.length) return;
+      const primary = linesByBill[b.id].reduce((top,l)=>l.amount>(top?.amount||0)?l:top,null);
+      if (!primary || primary.account_id === dom.account_id) return;
+      const narr = (b.narration||'').replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim().substring(0,100);
+      deviations.push({ odoo_id:b.id, entry_no:b.name||'', date:b.invoice_date||'',
+        bill_ref:(b.ref||'').trim(), narration:narr, partner_id:pid, vendor:vendorNames[pid]||'',
+        usual_account_code:dom.account_code, usual_account_name:dom.account_name, usual_pct:dom.pct,
+        booked_account_code:primary.account_code, booked_account_name:primary.account_name,
+        amount:Math.round(Math.abs(b.amount_total||0)*100)/100 });
+    });
+
+    deviations.sort((a,b)=>a.vendor.localeCompare(b.vendor)||a.date.localeCompare(b.date));
+    console.log('  ✅ '+deviations.length+' deviations | '+new Set(deviations.map(d=>d.partner_id)).size+' vendors');
+    res.json({ ok:true, deviations, total_deviations:deviations.length,
+      vendors_checked:Object.keys(vendorDominant).length,
+      vendors_with_deviation:new Set(deviations.map(d=>d.partner_id)).size });
+  } catch(e) {
+    console.error('❌ Account deviation error:', e.message);
+    res.status(400).json({ ok:false, error:e.message });
+  }
+});
+
 // ── GET /api/journals — for filter dropdown ────────────────────
 app.get('/api/journals', async (req, res) => {
   const s = loadSettings();

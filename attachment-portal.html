@@ -52,32 +52,32 @@
   /* ── App Body ── */
   .app-body { display: flex; flex: 1; overflow: hidden; }
 
-  /* ── Sidebar: auto-collapse ── */
-  .sidebar { width: 56px; min-width: 56px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; transition: width .22s ease; flex-shrink: 0; position: relative; z-index: 100; }
-  .sidebar:hover { width: 240px; box-shadow: 4px 0 12px rgba(0,0,0,.1); }
-  .sidebar .sidebar-cmd .cmd-btn span, .sidebar .nav-item span, .sidebar .nav-section-label, .sidebar .sidebar-footer .cmd-btn span, .sidebar-footer .cmd-btn-text { opacity: 0; transition: opacity .15s .05s; white-space: nowrap; overflow: hidden; }
-  .sidebar:hover .sidebar-cmd .cmd-btn span, .sidebar:hover .nav-item span, .sidebar:hover .nav-section-label, .sidebar:hover .sidebar-footer .cmd-btn span, .sidebar:hover .cmd-btn-text { opacity: 1; }
-  .nav-badge { opacity: 0; transition: opacity .15s .05s; }
-  .sidebar:hover .nav-badge { opacity: 1; }
-  .sidebar-cmd { padding: 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+  /* ── Sidebar: click-toggle collapse (Zoho style) ── */
+  .sidebar { width: 56px; min-width: 56px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; transition: width .22s cubic-bezier(.4,0,.2,1); flex-shrink: 0; position: relative; z-index: 100; }
+  .sidebar.expanded { width: 240px; box-shadow: 4px 0 12px rgba(0,0,0,.08); }
+  /* Text labels — hidden when collapsed */
+  .sidebar .nav-label, .sidebar .nav-section-label, .sidebar .cmd-label, .sidebar .sidebar-cmd .cmd-btn span, .nav-badge { opacity: 0; transition: opacity .12s; white-space: nowrap; overflow: hidden; max-width: 0; }
+  .sidebar.expanded .nav-label, .sidebar.expanded .nav-section-label, .sidebar.expanded .cmd-label, .sidebar.expanded .sidebar-cmd .cmd-btn span, .sidebar.expanded .nav-badge { opacity: 1; max-width: 200px; }
+  .sidebar-cmd { padding: 10px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+  .sidebar.expanded .sidebar-cmd { padding: 12px; }
   .sidebar-nav { flex: 1; overflow-y: auto; padding: 8px 0; }
-  .nav-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); padding: 12px 16px 4px; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer; border-left: 3px solid transparent; transition: all .12s; color: var(--text2); font-size: 13px; }
+  .nav-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); padding: 8px 0 4px; text-align: center; }
+  .sidebar.expanded .nav-section-label { padding: 12px 16px 4px; text-align: left; }
+  .nav-item { display: flex; align-items: center; gap: 0; padding: 10px 0; justify-content: center; cursor: pointer; border-left: 3px solid transparent; transition: all .12s; color: var(--text2); font-size: 13px; }
+  .sidebar.expanded .nav-item { gap: 10px; padding: 9px 16px; justify-content: flex-start; }
   .nav-item:hover { background: var(--primary-light); color: var(--primary); border-left-color: #c7e0f4; }
   .nav-item.active { background: #deecf9; color: var(--primary); font-weight: 600; border-left-color: var(--primary); }
   .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: .8; }
   .nav-item.active svg { opacity: 1; }
   .nav-badge { margin-left: auto; background: var(--danger); color: #fff; border-radius: 10px; font-size: 10px; font-weight: 700; min-width: 20px; height: 20px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; }
   .nav-badge.zero { background: #c8c6c4; }
-  .sidebar-footer { border-top: 1px solid var(--border); padding: 12px; }
-  /* Collapsed state: only icons visible, text hidden */
-  .sidebar .sidebar-cmd { padding: 10px; }
-  .sidebar:not(:hover) .sidebar-cmd .cmd-btn { padding: 9px 0; justify-content: center; border-radius: 50%; }
-  .sidebar:not(:hover) .nav-item { padding: 10px 0; justify-content: center; border-left: 3px solid transparent; }
-  .sidebar:not(:hover) .nav-item.active { border-left-color: var(--primary); }
-  .sidebar:not(:hover) .sidebar-footer { padding: 8px 0; display: flex; justify-content: center; }
-  .sidebar:not(:hover) .sidebar-footer .cmd-btn { padding: 9px 0; justify-content: center; width: 40px; }
-  .sidebar:not(:hover) .nav-section-label { padding: 8px 0 4px; text-align: center; letter-spacing: 0; }
+  .sidebar-footer { border-top: 1px solid var(--border); padding: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .sidebar.expanded .sidebar-footer { padding: 10px 12px; align-items: stretch; }
+  /* Toggle button at bottom */
+  .sidebar-toggle { width: 32px; height: 32px; border: 1px solid var(--border2); background: var(--surface); border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text2); transition: all .15s; flex-shrink: 0; }
+  .sidebar-toggle:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+  .sidebar-toggle svg { width: 14px; height: 14px; transition: transform .22s; }
+  .sidebar.expanded .sidebar-toggle svg { transform: rotate(180deg); }
 
   /* ── Buttons ── */
   .cmd-btn { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: none; background: transparent; color: var(--text); font-size: 13px; cursor: pointer; border-radius: var(--radius); transition: background .15s; width: 100%; text-align: left; font-family: inherit; }
@@ -228,11 +228,19 @@
 
   /* ── Vendor Pattern Heatmap ── */
   .pattern-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .pattern-table th { padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text2); border-bottom: 2px solid var(--border); background: #f3f2f1; white-space: nowrap; position: sticky; top: 0; z-index: 2; }
-  .pattern-table th.month-th { text-align: center; min-width: 72px; }
+  .pattern-table thead { position: sticky; top: 0; z-index: 10; }
+  .pattern-table th { padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text2); border-bottom: 2px solid var(--border); background: #f3f2f1; white-space: nowrap; }
+  .pattern-table th.sortable { cursor: pointer; user-select: none; }
+  .pattern-table th.sortable:hover { background: var(--primary-light); color: var(--primary); }
+  .pattern-table th.sort-asc::after  { content: " ▲"; font-size: 9px; }
+  .pattern-table th.sort-desc::after { content: " ▼"; font-size: 9px; }
+  .pattern-table th.month-th { text-align: center; min-width: 72px; background: #f3f2f1; }
   .pattern-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .pattern-table td:first-child { position: sticky; left: 0; background: #fff; z-index: 1; box-shadow: 2px 0 4px rgba(0,0,0,.04); }
+  .pattern-table th:first-child { position: sticky; left: 0; z-index: 11; background: #f3f2f1; }
   .pattern-table tr:last-child td { border: none; }
   .pattern-table tr:hover td { background: #f8f7f6; }
+  .pattern-table tr:hover td:first-child { background: #f0f0f0; }
   .cell-ok   { background: #dff6dd; color: #107c10; text-align: center; border-radius: 3px; padding: 3px 6px; font-weight: 600; font-size: 11px; cursor: default; }
   .cell-gap  { background: #fde7e9; color: #a4262c; text-align: center; border-radius: 3px; padding: 3px 6px; font-weight: 700; font-size: 13px; cursor: default; }
   .cell-none { background: #f3f2f1; color: #c8c6c4; text-align: center; border-radius: 3px; padding: 3px 6px; font-size: 11px; }
@@ -287,46 +295,56 @@
 <div class="app-body">
 
   <!-- ░░ SIDEBAR ░░ -->
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
     <div class="sidebar-cmd">
-      <button class="cmd-btn primary" onclick="runAudit()">
+      <button class="cmd-btn primary" onclick="runAudit()" title="Fetch from Odoo">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
-        <span>Fetch from Odoo</span>
+        <span class="nav-label">Fetch from Odoo</span>
       </button>
     </div>
 
     <div class="sidebar-nav">
       <div class="nav-section-label">Views</div>
 
-      <div class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')">
+      <div class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')" title="Dashboard">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4zM3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707zM2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10zm9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5zm.754-4.246a.389.389 0 0 0-.527-.02L9.373 7.448a.5.5 0 0 0 .655.757l2.354-2.036a.389.389 0 0 0 .032-.527l-.16-.19z"/><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/></svg>
-        <span>Dashboard</span>
+        <span class="nav-label">Dashboard</span>
       </div>
 
-      <div class="nav-item" id="nav-missing" onclick="switchTab('missing')">
+      <div class="nav-item" id="nav-missing" onclick="switchTab('missing')" title="Missing Attachments">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/><path d="M8 6.5a.5.5 0 0 1 .5.5v1.5H10a.5.5 0 0 1 0 1H8.5V11a.5.5 0 0 1-1 0V9.5H6a.5.5 0 0 1 0-1h1.5V7a.5.5 0 0 1 .5-.5z"/></svg>
-        <span>Missing Attachments</span>
+        <span class="nav-label">Missing Attachments</span>
         <span class="nav-badge zero" id="cnt-missing">0</span>
       </div>
 
-      <div class="nav-item" id="nav-pattern" onclick="switchTab('pattern')">
+      <div class="nav-item" id="nav-pattern" onclick="switchTab('pattern')" title="Vendor Pattern">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 0h1v15h15v1H0V0Zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07z"/></svg>
-        <span>Vendor Pattern</span>
+        <span class="nav-label">Vendor Pattern</span>
         <span class="nav-badge zero" id="cnt-pattern">0</span>
       </div>
 
-      <div class="nav-section-label" style="margin-top:8px">Actions</div>
+      <div class="nav-item" id="nav-deviation" onclick="switchTab('deviation')" title="Account Deviation">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>
+        <span class="nav-label">Account Deviation</span>
+        <span class="nav-badge zero" id="cnt-deviation">0</span>
+      </div>
 
-      <div class="nav-item" onclick="exportCSV()">
+      <div class="nav-section-label" style="margin-top:4px">Actions</div>
+
+      <div class="nav-item" onclick="exportCSV()" title="Export CSV">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
-        <span>Export CSV</span>
+        <span class="nav-label">Export CSV</span>
       </div>
     </div>
 
     <div class="sidebar-footer">
-      <button class="cmd-btn" onclick="openSettings()" style="color:var(--text2); font-size:12px">
+      <button class="cmd-btn" onclick="openSettings()" title="Odoo Settings" style="color:var(--text2);font-size:12px;justify-content:center;padding:6px 0;">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.892 3.433-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.892-1.64-.901-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.474l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/></svg>
-        <span class="cmd-btn-text">Odoo Settings</span>
+        <span class="nav-label" style="margin-left:8px">Odoo Settings</span>
+      </button>
+      <!-- Zoho-style expand/collapse toggle -->
+      <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle" title="Expand / Collapse">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/></svg>
       </button>
     </div>
   </div>
@@ -509,23 +527,34 @@
       <!-- Filter Bar -->
       <div class="filter-bar">
         <div class="filter-group">
-          <label class="filter-label">From</label>
-          <input type="date" class="fl-input" id="pDateFrom" style="width:138px" />
+          <label class="filter-label">Financial Year</label>
+          <select class="fl-select" id="pFY" style="width:130px" onchange="onFYChange()">
+            <option value="2023-24">FY 2023-24</option>
+            <option value="2024-25">FY 2024-25</option>
+            <option value="2025-26" selected>FY 2025-26</option>
+            <option value="2026-27">FY 2026-27</option>
+            <option value="custom">Custom Range</option>
+          </select>
         </div>
-        <div class="filter-group">
-          <label class="filter-label">To</label>
-          <input type="date" class="fl-input" id="pDateTo" style="width:138px" />
+        <div class="filter-group" id="pCustomRange" style="display:none">
+          <input type="date" class="fl-input" id="pDateFrom" style="width:132px" />
+          <span style="color:var(--text3);font-size:12px">to</span>
+          <input type="date" class="fl-input" id="pDateTo" style="width:132px" />
         </div>
+        <div class="filter-group" id="pFYDisplay">
+          <span id="pFYLabel" style="font-size:12px;color:var(--text2);background:var(--primary-light);padding:3px 10px;border-radius:10px;font-weight:600;"></span>
+        </div>
+        <div class="filter-sep"></div>
         <div class="filter-group">
           <label class="filter-label">Scope</label>
-          <select class="fl-select" id="pScope" style="width:155px">
+          <select class="fl-select" id="pScope" style="width:150px">
             <option value="expense">Expense Accounts</option>
             <option value="all_pl">All P&amp;L Accounts</option>
           </select>
         </div>
         <div class="filter-group">
-          <label class="filter-label">Min months active</label>
-          <select class="fl-select" id="pMinMonths" style="width:80px">
+          <label class="filter-label">Min months</label>
+          <select class="fl-select" id="pMinMonths" style="width:70px">
             <option value="2">2+</option>
             <option value="3">3+</option>
             <option value="6">6+</option>
@@ -533,13 +562,13 @@
         </div>
         <div class="filter-group">
           <label class="filter-label" style="color:var(--danger)">Show</label>
-          <select class="fl-select" id="pFilter" style="width:140px" onchange="renderPattern()">
+          <select class="fl-select" id="pFilter" style="width:135px" onchange="renderPattern()">
             <option value="gaps">With Gaps Only</option>
             <option value="all">All Vendors</option>
           </select>
         </div>
         <div style="margin-left:auto">
-          <input type="text" class="fl-input" id="pSearch" placeholder="🔍  Search vendor…" style="width:210px" oninput="renderPattern()" />
+          <input type="text" class="fl-input" id="pSearch" placeholder="🔍  Search vendor…" style="width:200px" oninput="renderPattern()" />
         </div>
       </div>
 
@@ -584,6 +613,123 @@
         </div>
       </div>
       <div style="padding:8px 16px; background:var(--surface2); border-top:1px solid var(--border); font-size:12px; color:var(--text2); flex-shrink:0;" id="patternInfo">—</div>
+    </div>
+
+
+    <!-- ── ACCOUNT DEVIATION PAGE ── -->
+    <div id="page-deviation" class="page" style="padding:0; display:none; flex-direction:column;">
+
+      <div class="content-topbar">
+        <span class="content-topbar-title" id="deviationTitle">Account Head Deviation</span>
+        <div class="content-topbar-actions">
+          <button class="topbar-btn" onclick="runDeviation()">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Fetch Deviations
+          </button>
+          <div class="topbar-sep"></div>
+          <button class="topbar-btn primary" onclick="exportDeviation()">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label class="filter-label">Financial Year</label>
+          <select class="fl-select" id="dFY" style="width:130px" onchange="onDFYChange()">
+            <option value="2023-24">FY 2023-24</option>
+            <option value="2024-25">FY 2024-25</option>
+            <option value="2025-26" selected>FY 2025-26</option>
+            <option value="2026-27">FY 2026-27</option>
+            <option value="custom">Custom Range</option>
+          </select>
+        </div>
+        <div class="filter-group" id="dCustomRange" style="display:none">
+          <input type="date" class="fl-input" id="dDateFrom" style="width:132px" />
+          <span style="color:var(--text3);font-size:12px">to</span>
+          <input type="date" class="fl-input" id="dDateTo" style="width:132px" />
+        </div>
+        <div class="filter-group" id="dFYDisplay">
+          <span id="dFYLabel" style="font-size:12px;color:var(--text2);background:var(--primary-light);padding:3px 10px;border-radius:10px;font-weight:600;"></span>
+        </div>
+        <div class="filter-sep"></div>
+        <div class="filter-group">
+          <label class="filter-label">Scope</label>
+          <select class="fl-select" id="dScope" style="width:150px">
+            <option value="expense">Expense Accounts</option>
+            <option value="all_pl">All P&amp;L Accounts</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Min entries (history)</label>
+          <select class="fl-select" id="dMinEntries" style="width:70px">
+            <option value="2">2+</option>
+            <option value="3" selected>3+</option>
+            <option value="5">5+</option>
+          </select>
+        </div>
+        <div style="margin-left:auto">
+          <input type="text" class="fl-input" id="dSearch" placeholder="🔍  Search vendor or account…" style="width:240px" oninput="renderDeviation()" />
+        </div>
+      </div>
+
+      <!-- Summary bar -->
+      <div id="deviationCards" style="display:none; padding:8px 16px 0; flex-shrink:0;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div class="info-card" style="padding:10px 16px;flex:1;min-width:130px">
+            <div class="info-card-label">Vendors Checked</div>
+            <div class="info-card-value blue" id="dc-vendors">—</div>
+          </div>
+          <div class="info-card hl-red" style="padding:10px 16px;flex:1;min-width:130px">
+            <div class="info-card-label">Deviations Found</div>
+            <div class="info-card-value red" id="dc-total">—</div>
+          </div>
+          <div class="info-card" style="padding:10px 16px;flex:1;min-width:130px">
+            <div class="info-card-label">Vendors Affected</div>
+            <div class="info-card-value orange" id="dc-affected">—</div>
+          </div>
+          <div class="info-card" style="padding:10px 16px;flex:2;min-width:260px;background:#fff4ce;border-color:#ffe89a;">
+            <div class="info-card-label" style="color:#7a4f00">What is a Deviation?</div>
+            <div style="font-size:12px;color:#7a4f00;margin-top:4px">
+              A vendor's <strong>usual account</strong> is determined from historical bookings. Any entry using a <strong>different account</strong> is flagged — likely a wrong account head selection.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div style="flex:1;overflow-y:auto;padding:10px 16px 0;">
+        <div class="table-wrap" id="deviationWrap">
+          <table class="data-table" id="deviationTable">
+            <thead>
+              <tr>
+                <th class="sno">#</th>
+                <th onclick="sortDev('vendor')">Vendor</th>
+                <th onclick="sortDev('date')">Date</th>
+                <th onclick="sortDev('entry_no')">Entry No.</th>
+                <th onclick="sortDev('bill_ref')">Bill Reference</th>
+                <th onclick="sortDev('narration')">Narration</th>
+                <th onclick="sortDev('usual_account_name')" style="background:#dff6dd">Usual Account</th>
+                <th onclick="sortDev('booked_account_name')" style="background:#fde7e9">Booked Account</th>
+                <th onclick="sortDev('amount')" style="text-align:right">Amount (₹)</th>
+                <th style="text-align:center;width:56px">Open</th>
+              </tr>
+            </thead>
+            <tbody id="deviationBody"></tbody>
+          </table>
+          <div id="deviationEmpty" class="empty-state" style="display:none">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>
+            <h3 id="deviationEmptyTitle">No Deviations Found</h3>
+            <p id="deviationEmptyDesc">Select a period and click Fetch Deviations.</p>
+          </div>
+        </div>
+      </div>
+      <div class="pagination">
+        <span id="devPageInfo">—</span>
+        <div class="page-btns" id="devPageBtns"></div>
+      </div>
     </div>
 
   </div><!-- /content-panel -->
@@ -652,8 +798,12 @@ let lastMeta     = {};
 // ── Boot ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   setDefaultDates();
-  initPatternDates();
+  initSidebar();
+  onFYChange();
+  onDFYChange();
   restoreState();
+  restorePatternState();
+  restoreDeviationState();
   pingProxy();
 });
 
@@ -708,7 +858,7 @@ function switchTab(id) {
   document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const pg = document.getElementById('page-'+id);
-  if (pg) { pg.classList.add('active'); pg.style.display = (id === 'missing' || id === 'pattern') ? 'flex' : 'block'; }
+  if (pg) { pg.classList.add('active'); pg.style.display = ['missing','pattern','deviation'].includes(id) ? 'flex' : 'block'; }
   const nv = document.getElementById('nav-'+id);
   if (nv) nv.classList.add('active');
 }
@@ -1117,6 +1267,7 @@ async function runPattern() {
     document.getElementById('patternTitle').textContent =
       `Vendor Pattern — ${res.vendors_with_gaps} gaps found across ${res.total_vendors} vendors`;
 
+    savePatternState();
     renderPattern();
     toast(res.vendors_with_gaps > 0
       ? `⚠ ${res.vendors_with_gaps} vendors have missing months`
@@ -1233,6 +1384,385 @@ function exportPattern() {
   toast(`Exported ${vendors.length} vendors`, 'success');
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// SIDEBAR TOGGLE
+// ══════════════════════════════════════════════════════════════
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const expanded = sb.classList.toggle('expanded');
+  try { localStorage.setItem('sidebarExpanded', expanded ? '1' : '0'); } catch(e){}
+}
+function initSidebar() {
+  try {
+    if (localStorage.getItem('sidebarExpanded') === '1') {
+      document.getElementById('sidebar').classList.add('expanded');
+    }
+  } catch(e){}
+}
+
+// ══════════════════════════════════════════════════════════════
+// FY HELPERS (shared by pattern + deviation)
+// ══════════════════════════════════════════════════════════════
+function fyDates(fy) {
+  // fy = "2025-26"
+  const y = parseInt(fy.split('-')[0]);
+  return { from: `${y}-04-01`, to: `${y+1}-03-31` };
+}
+
+function onFYChange() {
+  const fy = document.getElementById('pFY').value;
+  const customDiv = document.getElementById('pCustomRange');
+  const displayDiv = document.getElementById('pFYDisplay');
+  if (fy === 'custom') {
+    customDiv.style.display = 'flex';
+    displayDiv.style.display = 'none';
+  } else {
+    customDiv.style.display = 'none';
+    displayDiv.style.display = '';
+    const {from, to} = fyDates(fy);
+    document.getElementById('pDateFrom').value = from;
+    document.getElementById('pDateTo').value   = to;
+    document.getElementById('pFYLabel').textContent = `${from}  →  ${to}`;
+  }
+}
+
+function onDFYChange() {
+  const fy = document.getElementById('dFY').value;
+  const customDiv = document.getElementById('dCustomRange');
+  const displayDiv = document.getElementById('dFYDisplay');
+  if (fy === 'custom') {
+    customDiv.style.display = 'flex';
+    displayDiv.style.display = 'none';
+  } else {
+    customDiv.style.display = 'none';
+    displayDiv.style.display = '';
+    const {from, to} = fyDates(fy);
+    document.getElementById('dDateFrom').value = from;
+    document.getElementById('dDateTo').value   = to;
+    document.getElementById('dFYLabel').textContent = `${from}  →  ${to}`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// PATTERN: save/restore + sortable header updates
+// ══════════════════════════════════════════════════════════════
+let pSortCol = 'gaps'; let pSortDir = -1;
+
+function savePatternState() {
+  try {
+    localStorage.setItem('attPattern', JSON.stringify({
+      data: patternData,
+      fy: document.getElementById('pFY').value,
+      scope: document.getElementById('pScope').value,
+      minMonths: document.getElementById('pMinMonths').value
+    }));
+  } catch(e){}
+}
+
+function restorePatternState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('attPattern')||'null');
+    if (!s || !s.data?.vendors?.length) return;
+    patternData = s.data;
+    if (s.fy)  document.getElementById('pFY').value = s.fy;
+    if (s.scope) document.getElementById('pScope').value = s.scope;
+    if (s.minMonths) document.getElementById('pMinMonths').value = s.minMonths;
+    onFYChange();
+
+    const badge = document.getElementById('cnt-pattern');
+    badge.textContent = patternData.vendors_with_gaps || 0;
+    badge.className = `nav-badge ${(patternData.vendors_with_gaps||0)>0?'':'zero'}`;
+    document.getElementById('pc-total').textContent  = patternData.total_vendors || 0;
+    document.getElementById('pc-gaps').textContent   = patternData.vendors_with_gaps || 0;
+    document.getElementById('pc-months').textContent = (patternData.months||[]).length;
+    document.getElementById('patternCards').style.display = 'block';
+    document.getElementById('patternTitle').textContent =
+      `Vendor Pattern — ${patternData.vendors_with_gaps} gaps found across ${patternData.total_vendors} vendors`;
+    renderPattern();
+  } catch(e){}
+}
+
+function sortPattern(col) {
+  if (pSortCol === col) pSortDir *= -1; else { pSortCol = col; pSortDir = -1; }
+  renderPattern();
+}
+
+// Patch renderPattern header to add sortable classes
+const _origRenderPattern = renderPattern;
+// (renderPattern is already defined above — we extend the header generation here via re-definition)
+function renderPattern() {
+  const months     = patternData.months || [];
+  const allVendors = patternData.vendors || [];
+  const filter     = document.getElementById('pFilter')?.value || 'gaps';
+  const q          = (document.getElementById('pSearch')?.value || '').toLowerCase();
+  const head       = document.getElementById('patternHead');
+  const body       = document.getElementById('patternBody');
+  const info       = document.getElementById('patternInfo');
+  const empty      = document.getElementById('patternEmpty');
+
+  if (!months.length || !allVendors.length) {
+    empty.style.display = 'block'; head.innerHTML = ''; body.innerHTML = '';
+    info.textContent = '—'; return;
+  }
+  empty.style.display = 'none';
+
+  let vendors = [...allVendors];
+  if (filter === 'gaps') vendors = vendors.filter(v => v.has_gaps);
+  if (q) vendors = vendors.filter(v => v.partner_name.toLowerCase().includes(q));
+
+  // Apply sort
+  vendors.sort((a, b) => {
+    const calcGaps = v => v.missing_months.filter(m => {
+      const idx = months.indexOf(m);
+      return months.slice(0,idx).some(mm=>v.monthly[mm]) && months.slice(idx+1).some(mm=>v.monthly[mm]);
+    }).length;
+    if (pSortCol === 'vendor')    return pSortDir * a.partner_name.localeCompare(b.partner_name);
+    if (pSortCol === 'gaps')      return pSortDir * (calcGaps(b) - calcGaps(a));
+    if (pSortCol === 'avg')       return pSortDir * (b.avg_monthly - a.avg_monthly);
+    if (pSortCol === 'active')    return pSortDir * (b.active_months - a.active_months);
+    return 0;
+  });
+
+  const sc = n => pSortCol===n ? (pSortDir===1?' ▲':' ▼') : '';
+  const monthLabels = months.map(m => {
+    const [y, mo] = m.split('-');
+    const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1];
+    return `<th class="month-th">${mn}<br><span style="font-size:9px;font-weight:400">${y}</span></th>`;
+  }).join('');
+
+  head.innerHTML = `<tr>
+    <th class="sortable" style="min-width:180px" onclick="sortPattern('vendor')">Vendor${sc('vendor')}</th>
+    <th class="sortable" style="text-align:center;min-width:60px" onclick="sortPattern('active')">Active${sc('active')}</th>
+    <th class="sortable" style="text-align:center;min-width:56px" onclick="sortPattern('gaps')">Gaps${sc('gaps')}</th>
+    <th class="sortable" style="text-align:right;min-width:88px" onclick="sortPattern('avg')">Avg/Mo${sc('avg')}</th>
+    ${monthLabels}
+  </tr>`;
+
+  body.innerHTML = vendors.map(v => {
+    const cells = months.map(m => {
+      const d = v.monthly[m];
+      if (!d) {
+        const hasAfter  = months.slice(months.indexOf(m)+1).some(mm => v.monthly[mm]);
+        const hasBefore = months.slice(0, months.indexOf(m)).some(mm => v.monthly[mm]);
+        if (hasBefore && hasAfter)
+          return `<td><div class="cell-gap" title="Missing entry — possible gap">✗</div></td>`;
+        return `<td><div class="cell-none">—</div></td>`;
+      }
+      const amt = d.amount >= 100000 ? (d.amount/100000).toFixed(1)+'L'
+                : d.amount >= 1000   ? (d.amount/1000).toFixed(0)+'K'
+                : d.amount.toFixed(0);
+      return `<td><div class="cell-ok" title="${d.count} entr${d.count>1?'ies':'y'} · ₹${d.amount.toLocaleString('en-IN',{maximumFractionDigits:0})}">✓ ${amt}</div></td>`;
+    }).join('');
+
+    const gapCount = v.missing_months.filter(m => {
+      const idx = months.indexOf(m);
+      return months.slice(0,idx).some(mm=>v.monthly[mm]) && months.slice(idx+1).some(mm=>v.monthly[mm]);
+    }).length;
+
+    const avg = v.avg_monthly >= 100000 ? (v.avg_monthly/100000).toFixed(1)+'L'
+              : v.avg_monthly >= 1000   ? (v.avg_monthly/1000).toFixed(0)+'K'
+              : v.avg_monthly.toFixed(0);
+
+    return `<tr>
+      <td style="font-weight:600;font-size:13px">${x(v.partner_name)}</td>
+      <td style="text-align:center"><span class="pattern-stat">${v.active_months}/${months.length}</span></td>
+      <td style="text-align:center"><span class="${gapCount>0?'gap-badge':'gap-badge zero'}">${gapCount}</span></td>
+      <td style="text-align:right;font-family:'Courier New',monospace">₹${avg}</td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  info.textContent = `Showing ${vendors.length} vendors · ${filter==='gaps'?'filtered to vendors with gaps':'all recurring vendors'} · ${months.length} months`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ACCOUNT DEVIATION
+// ══════════════════════════════════════════════════════════════
+let devData     = [];
+let devFiltered = [];
+let devSortCol  = 'vendor'; let devSortDir = 1;
+let devPage     = 1;
+const DEV_PAGE_SZ = 100;
+
+async function runDeviation() {
+  const fy = document.getElementById('dFY').value;
+  let dateFrom, dateTo;
+  if (fy === 'custom') {
+    dateFrom = document.getElementById('dDateFrom').value;
+    dateTo   = document.getElementById('dDateTo').value;
+  } else {
+    const d = fyDates(fy);
+    dateFrom = d.from; dateTo = d.to;
+  }
+  const scope      = document.getElementById('dScope').value;
+  const minEntries = parseInt(document.getElementById('dMinEntries').value) || 3;
+
+  if (!dateFrom || !dateTo) { toast('Select a period first','error'); return; }
+  setLoading(true);
+  try {
+    const r = await fetch(`${PROXY}/api/sync/account-deviation`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ dateFrom, dateTo, accountScope:scope, minEntries })
+    });
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.error||'Failed');
+
+    devData     = res.deviations || [];
+    devFiltered = [...devData];
+    devPage     = 1;
+
+    document.getElementById('dc-vendors').textContent  = res.vendors_checked || 0;
+    document.getElementById('dc-total').textContent    = res.total_deviations || 0;
+    document.getElementById('dc-affected').textContent = res.vendors_with_deviation || 0;
+    document.getElementById('deviationCards').style.display = 'block';
+    document.getElementById('deviationTitle').textContent =
+      `Account Deviation — ${res.total_deviations} deviations across ${res.vendors_with_deviation} vendors`;
+
+    const badge = document.getElementById('cnt-deviation');
+    badge.textContent = res.total_deviations || 0;
+    badge.className   = `nav-badge ${(res.total_deviations||0)>0?'':'zero'}`;
+
+    // Save to localStorage
+    try { localStorage.setItem('attDeviation', JSON.stringify({ data:devData, fy, scope, minEntries })); } catch(e){}
+
+    renderDeviation();
+    toast(res.total_deviations>0
+      ? `⚠ ${res.total_deviations} account deviations found`
+      : `✅ No deviations — all vendors consistent`, res.total_deviations>0?'error':'success');
+  } catch(e) {
+    toast('Error: '+e.message,'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function restoreDeviationState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('attDeviation')||'null');
+    if (!s||!s.data?.length) return;
+    devData     = s.data;
+    devFiltered = [...devData];
+    if (s.fy) document.getElementById('dFY').value = s.fy;
+    if (s.scope) document.getElementById('dScope').value = s.scope;
+    if (s.minEntries) document.getElementById('dMinEntries').value = s.minEntries;
+    onDFYChange();
+    const cnt = document.getElementById('cnt-deviation');
+    cnt.textContent = devData.length;
+    cnt.className   = `nav-badge ${devData.length>0?'':'zero'}`;
+    document.getElementById('dc-vendors').textContent  = '—';
+    document.getElementById('dc-total').textContent    = devData.length;
+    document.getElementById('dc-affected').textContent = new Set(devData.map(d=>d.partner_id)).size;
+    document.getElementById('deviationCards').style.display = 'block';
+    document.getElementById('deviationTitle').textContent =
+      `Account Deviation — ${devData.length} deviations`;
+    renderDeviation();
+  } catch(e){}
+}
+
+function sortDev(col) {
+  if (devSortCol===col) devSortDir*=-1; else { devSortCol=col; devSortDir=1; }
+  devFiltered.sort((a,b) => {
+    const va=a[col]??'', vb=b[col]??'';
+    return typeof va==='number' ? devSortDir*(va-vb) : devSortDir*String(va).localeCompare(String(vb));
+  });
+  devPage=1; renderDeviation();
+}
+
+function renderDeviation() {
+  const q = (document.getElementById('dSearch')?.value||'').toLowerCase();
+  devFiltered = q
+    ? devData.filter(r => ['vendor','usual_account_name','booked_account_name','entry_no','bill_ref','narration']
+        .some(k => (r[k]||'').toLowerCase().includes(q)))
+    : [...devData];
+
+  // apply current sort
+  devFiltered.sort((a,b) => {
+    const va=a[devSortCol]??'', vb=b[devSortCol]??'';
+    return typeof va==='number' ? devSortDir*(va-vb) : devSortDir*String(va).localeCompare(String(vb));
+  });
+
+  const tbody  = document.getElementById('deviationBody');
+  const empty  = document.getElementById('deviationEmpty');
+  const info   = document.getElementById('devPageInfo');
+  const btns   = document.getElementById('devPageBtns');
+
+  if (!devFiltered.length) {
+    tbody.innerHTML=''; empty.style.display='block';
+    document.getElementById('deviationEmptyTitle').textContent = devData.length?'No matches':'No Data Yet';
+    document.getElementById('deviationEmptyDesc').textContent  = devData.length?'Try clearing your search filter.':'Select a period and click Fetch Deviations.';
+    info.textContent='No records'; btns.innerHTML=''; return;
+  }
+  empty.style.display='none';
+
+  const totalPages = Math.ceil(devFiltered.length/DEV_PAGE_SZ);
+  if (devPage>totalPages) devPage=totalPages;
+  const start = (devPage-1)*DEV_PAGE_SZ;
+  const rows  = devFiltered.slice(start, start+DEV_PAGE_SZ);
+
+  tbody.innerHTML = rows.map((r,i) => {
+    const link = odooBaseUrl
+      ? `${odooBaseUrl.replace(/\/$/,'')}/web#id=${r.odoo_id}&model=account.move&view_type=form`
+      : '#';
+    const amt = (r.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+    return `<tr>
+      <td class="sno">${start+i+1}</td>
+      <td style="font-weight:600;font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(r.vendor)}">${x(r.vendor)}</td>
+      <td style="white-space:nowrap;font-size:12px">${r.date}</td>
+      <td style="color:var(--primary);font-weight:600">${x(r.entry_no)}</td>
+      <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)" title="${x(r.bill_ref)}">${x(r.bill_ref)||'—'}</td>
+      <td style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)" title="${x(r.narration)}">${x(r.narration)||'—'}</td>
+      <td style="background:#f0faf0;font-size:12px;white-space:nowrap">
+        <span style="color:var(--success);font-weight:600">${x(r.usual_account_code)}</span>
+        <span style="color:var(--text2)"> ${x(r.usual_account_name)}</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:4px">(${r.usual_pct}%)</span>
+      </td>
+      <td style="background:#fff5f5;font-size:12px;white-space:nowrap">
+        <span style="color:var(--danger);font-weight:600">${x(r.booked_account_code)}</span>
+        <span style="color:var(--text2)"> ${x(r.booked_account_name)}</span>
+      </td>
+      <td class="amt">₹${amt}</td>
+      <td style="text-align:center">
+        <a class="icon-btn" href="${link}" target="_blank" title="Open in Odoo">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/><path d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg>
+        </a>
+      </td>
+    </tr>`;
+  }).join('');
+
+  info.textContent = `Showing ${start+1}–${Math.min(start+DEV_PAGE_SZ,devFiltered.length)} of ${devFiltered.length} deviations`;
+  // Pagination
+  const totalPg = Math.ceil(devFiltered.length/DEV_PAGE_SZ);
+  const pgs=[];
+  if(totalPg<=7){for(let i=1;i<=totalPg;i++)pgs.push(i);}
+  else{pgs.push(1);if(devPage>3)pgs.push('…');for(let i=Math.max(2,devPage-1);i<=Math.min(totalPg-1,devPage+1);i++)pgs.push(i);if(devPage<totalPg-2)pgs.push('…');pgs.push(totalPg);}
+  btns.innerHTML=`<button class="page-btn" onclick="devGoPage(${devPage-1})" ${devPage===1?'disabled':''}>‹</button>`
+    +pgs.map(p=>p==='…'?`<button class="page-btn" style="pointer-events:none">…</button>`
+      :`<button class="page-btn ${p===devPage?'active':''}" onclick="devGoPage(${p})">${p}</button>`).join('')
+    +`<button class="page-btn" onclick="devGoPage(${devPage+1})" ${devPage===totalPg?'disabled':''}>›</button>`;
+}
+
+function devGoPage(p) {
+  const total = Math.ceil(devFiltered.length/DEV_PAGE_SZ);
+  if(p<1||p>total) return;
+  devPage=p; renderDeviation();
+  document.getElementById('deviationWrap').scrollTop=0;
+}
+
+function exportDeviation() {
+  if (!devFiltered.length) { toast('No data to export','error'); return; }
+  const cols = ['S.No','Vendor','Date','Entry No.','Bill Reference','Narration','Usual Account Code','Usual Account Name','Usual %','Booked Account Code','Booked Account Name','Amount (INR)','Odoo ID'];
+  const rows = devFiltered.map((r,i) => [i+1,r.vendor,r.date,r.entry_no,r.bill_ref,r.narration,
+    r.usual_account_code,r.usual_account_name,r.usual_pct+'%',
+    r.booked_account_code,r.booked_account_name,r.amount,r.odoo_id]);
+  const csv = [cols,...rows].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'),{
+    href: URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'})),
+    download: `account_deviation_${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+  toast(`Exported ${devFiltered.length} records`,'success');
+}
 // Ctrl+R → run audit
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey||e.metaKey) && e.key==='r') { e.preventDefault(); runAudit(); }
