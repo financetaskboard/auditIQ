@@ -489,7 +489,10 @@
           </div>
           <button class="topbar-btn primary" onclick="runAudit()" style="margin-left:8px">
             <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
-            Fetch Now
+            Fetch &amp; Merge
+          </button>
+          <button class="topbar-btn" onclick="clearAuditData()" style="color:var(--danger);border-color:var(--danger);margin-left:4px" title="Clear all accumulated data and start fresh">
+            🗑 Clear All
           </button>
           <span id="syncRangeInfo" style="font-size:11px;color:#7a4f00"></span>
           <button onclick="closeSyncPanel()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#7a4f00;font-size:16px;padding:0 4px">✕</button>
@@ -873,6 +876,11 @@ let sortDir      = -1;
 let page         = 1;
 let odooBaseUrl  = '';
 let lastMeta     = {};
+// Tracks which FYs have been synced — persisted separately from data
+// so dropdown always shows correct FYs even if data was too large to cache
+let syncedFYs          = new Set();
+let syncedPatternFYs   = new Set();
+let syncedDeviationFYs = new Set();
 
 // ── Boot ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -992,7 +1000,10 @@ async function runAudit() {
     const res = await r.json();
     if (!res.ok) throw new Error(res.error || 'Sync failed');
 
-    allData  = res.data || [];
+    // Merge: remove entries in the synced date range (refresh), keep others (accumulate)
+    const preserved = allData.filter(r => r.date < dateFrom || r.date > dateTo);
+    allData  = [...preserved, ...(res.data || [])];
+    allData.sort((a, b) => b.date.localeCompare(a.date));
     filtered = [...allData];
     page     = 1;
 
@@ -1003,9 +1014,19 @@ async function runAudit() {
       dateFrom, dateTo, accountScope, entryType
     };
 
-    // Auto-populate View FY dropdown from actual synced dates
-    populateViewFY(allData.map(r => r.date), 'viewFY');
-    applyFYView();   // re-apply the filter with the newly selected FY
+    // Record every FY covered by this sync range (even if 0 missing entries)
+    // This makes the dropdown show the FY even when no records exist for it
+    const fyFrom = dateFrom, fyTo = dateTo;
+    let cur = new Date(fyFrom);
+    const endD = new Date(fyTo);
+    while (cur <= endD) {
+      syncedFYs.add(dateToFY(cur.toISOString().split('T')[0]));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+
+    // Populate View FY from both synced FYs (reliable) and data dates
+    populateViewFYFromSynced('viewFY', syncedFYs, allData.map(r => r.date));
+    applyFYView();
 
     updateDash(lastMeta);
     renderTable();
@@ -1087,24 +1108,95 @@ function dateToFY(dateStr) {
   return `${fyStart}-${String(fyStart + 1).slice(-2)}`;
 }
 
-// Auto-populate a View FY dropdown from actual data dates
-// Keeps "All Data" option; adds only FYs that exist in the data; selects latest
-function populateViewFY(dates, selectorId) {
+// populateViewFYFromSynced: builds dropdown from BOTH tracked synced FYs
+// (reliable, always remembered) AND dates in loaded data (catches gaps).
+// This ensures the dropdown always shows every FY ever synced — even if
+// that FY had zero missing entries (no data rows) or data was too large to cache.
+function populateViewFYFromSynced(selectorId, syncedSet, dateDates) {
   const sel = document.getElementById(selectorId);
   if (!sel) return;
-  const fys = new Set(dates.map(dateToFY).filter(Boolean));
-  const sorted = [...fys].sort(); // ascending: "2023-24", "2024-25" ...
 
-  // Rebuild options
-  sel.innerHTML = '<option value="all">All FYs</option>';
+  // Union: synced FY tracking (reliable) + inferred from data (safety net)
+  const fromData = new Set((dateDates||[]).map(dateToFY).filter(Boolean));
+  const all = new Set([...syncedSet, ...fromData]);
+  const sorted = [...all].sort();
+
+  const prev = sel.value;
+  sel.innerHTML = '<option value="all">All FYs (' + sorted.length + ')</option>';
   sorted.forEach(fy => {
     const opt = document.createElement('option');
     opt.value = fy;
-    opt.textContent = `FY ${fy}`;
+    opt.textContent = 'FY ' + fy;
     sel.appendChild(opt);
   });
-  // Select the latest FY by default
-  if (sorted.length) sel.value = sorted[sorted.length - 1];
+
+  if (prev && prev !== 'all' && sorted.includes(prev)) {
+    sel.value = prev;
+  } else if (sorted.length) {
+    sel.value = sorted[sorted.length - 1];
+  }
+}
+
+// Legacy wrapper — still works for pattern and deviation which use dates only
+function populateViewFY(dates, selectorId) {
+  populateViewFYFromSynced(selectorId, new Set(), dates);
+}
+
+// ── Merge two pattern datasets (different FYs synced at different times) ──
+function mergePatternData(existing, incoming) {
+  if (!existing || !existing.months?.length) return incoming; // nothing to merge
+
+  // Union of months, sorted
+  const allMonths = [...new Set([...(existing.months||[]), ...(incoming.months||[])])].sort();
+
+  // Merge vendors: combine monthly maps for vendors that appear in both
+  const vendorMap = {};
+
+  // Load existing vendors
+  (existing.vendors||[]).forEach(v => {
+    vendorMap[v.partner_id] = {
+      partner_id:   v.partner_id,
+      partner_name: v.partner_name,
+      monthly:      { ...(v.monthly||{}) }
+    };
+  });
+
+  // Merge incoming vendors (overwrite monthly cells from new fetch, keep old cells for other months)
+  (incoming.vendors||[]).forEach(v => {
+    if (!vendorMap[v.partner_id]) {
+      vendorMap[v.partner_id] = {
+        partner_id:   v.partner_id,
+        partner_name: v.partner_name,
+        monthly:      {}
+      };
+    }
+    // Overwrite only the months present in the incoming data range
+    Object.assign(vendorMap[v.partner_id].monthly, v.monthly||{});
+  });
+
+  // Recalculate derived fields for each vendor based on ALL months
+  const mergedVendors = Object.values(vendorMap).map(v => {
+    const active  = allMonths.filter(m => v.monthly[m]);
+    const missing = allMonths.filter(m => !v.monthly[m]);
+    const total   = active.reduce((s,m) => s + (v.monthly[m]?.amount||0), 0);
+    return {
+      ...v,
+      active_months:  active.length,
+      missing_months: missing,
+      has_gaps:       missing.length > 0 && active.length > 0,
+      total_amount:   Math.round(total * 100) / 100,
+      avg_monthly:    active.length ? Math.round(total / active.length) : 0
+    };
+  }).sort((a,b) => b.missing_months.length - a.missing_months.length || b.total_amount - a.total_amount);
+
+  const withGaps = mergedVendors.filter(v => v.has_gaps).length;
+  return {
+    ok:                  true,
+    months:              allMonths,
+    vendors:             mergedVendors,
+    total_vendors:       mergedVendors.length,
+    vendors_with_gaps:   withGaps
+  };
 }
 
 function applyFYView() {
@@ -1404,40 +1496,59 @@ function toast(msg, type='info') {
 }
 
 function saveState() {
+  // Save metadata separately (tiny — never hits quota)
   try {
-    localStorage.setItem('attAudit', JSON.stringify({
-      data: allData, meta: lastMeta,
+    localStorage.setItem('attAuditMeta', JSON.stringify({
+      meta: lastMeta,
       df: document.getElementById('dateFrom').value,
       dt: document.getElementById('dateTo').value,
       sc: document.getElementById('accountScope').value,
       et: document.getElementById('entryType').value,
-      vfy: document.getElementById('viewFY')?.value || '2025-26'
+      vfy: document.getElementById('viewFY')?.value || 'all',
+      syncedFYs: [...syncedFYs]   // track which FYs have been fetched
     }));
   } catch(e){}
+  // Save data separately — may fail if too large, that's OK
+  try {
+    localStorage.setItem('attAuditData', JSON.stringify(allData));
+  } catch(e) {
+    // Quota exceeded — data won't persist on refresh but FY list still will
+    console.warn('Could not cache data (quota), but metadata saved');
+  }
 }
 
 function restoreState() {
   try {
-    const s = JSON.parse(localStorage.getItem('attAudit')||'null');
-    if (!s) return;
-    allData  = s.data || [];
+    // Load metadata (always small, always available)
+    const m = JSON.parse(localStorage.getItem('attAuditMeta')||'null');
+    // Load data (may be missing if quota was exceeded last session)
+    const rawData = (() => { try { return JSON.parse(localStorage.getItem('attAuditData')||'null'); } catch(e){return null;} })();
+
+    if (!m) return;
+
+    allData  = rawData || [];
     filtered = [...allData];
-    lastMeta = s.meta || {};
-    if (s.df) document.getElementById('dateFrom').value = s.df;
-    if (s.dt) document.getElementById('dateTo').value   = s.dt;
-    if (s.sc)  document.getElementById('accountScope').value = s.sc;
-    if (s.et)  document.getElementById('entryType').value    = s.et;
-    if (s.vfy && document.getElementById('viewFY')) document.getElementById('viewFY').value = s.vfy;
+    lastMeta = m.meta || {};
+
+    if (m.df) document.getElementById('dateFrom').value = m.df;
+    if (m.dt) document.getElementById('dateTo').value   = m.dt;
+    if (m.sc) document.getElementById('accountScope').value = m.sc;
+    if (m.et) document.getElementById('entryType').value    = m.et;
+
+    // Restore synced FYs — these are always reliable even if data was lost
+    if (m.syncedFYs) m.syncedFYs.forEach(fy => syncedFYs.add(fy));
+
     if (lastMeta.total) updateDash(lastMeta);
     const badge = document.getElementById('cnt-missing');
     badge.textContent = allData.length;
     badge.className   = `nav-badge ${allData.length>0?'':'zero'}`;
-    // Re-populate View FY from saved data
-    populateViewFY(allData.map(r => r.date), 'viewFY');
-    if (s.vfy) document.getElementById('viewFY').value = s.vfy;
+
+    // Populate from BOTH synced FYs (reliable) AND data dates (fills gaps)
+    populateViewFYFromSynced('viewFY', syncedFYs, allData.map(r => r.date));
+    if (m.vfy) document.getElementById('viewFY').value = m.vfy;
     applyFYView();
     renderTable();
-  } catch(e){}
+  } catch(e){ console.error('restoreState error:', e); }
 }
 
 
@@ -1475,22 +1586,34 @@ async function runPattern() {
     const res = await r.json();
     if (!res.ok) throw new Error(res.error || 'Failed');
 
-    patternData = res;
-    // Auto-populate View FY from synced months
-    const allPatternDates = (res.months||[]).map(m => m + '-01');
+    // Merge pattern data: union months, merge vendor monthly maps
+    patternData = mergePatternData(patternData, res);
+    // Auto-populate View FY from ALL accumulated months
+    const allPatternDates = (patternData.months||[]).map(m => m + '-01');
     populateViewFY(allPatternDates, 'pViewFY');
     applyPatternFYView();
+    // Use merged patternData totals (not raw res, since we merged)
     const badge = document.getElementById('cnt-pattern');
-    badge.textContent = res.vendors_with_gaps || 0;
-    badge.className   = `nav-badge ${(res.vendors_with_gaps||0) > 0 ? '' : 'zero'}`;
+    badge.textContent = patternData.vendors_with_gaps || 0;
+    badge.className   = `nav-badge ${(patternData.vendors_with_gaps||0) > 0 ? '' : 'zero'}`;
 
-    document.getElementById('pc-total').textContent  = res.total_vendors || 0;
-    document.getElementById('pc-gaps').textContent   = res.vendors_with_gaps || 0;
-    document.getElementById('pc-months').textContent = (res.months||[]).length;
+    document.getElementById('pc-total').textContent  = patternData.total_vendors || 0;
+    document.getElementById('pc-gaps').textContent   = patternData.vendors_with_gaps || 0;
+    document.getElementById('pc-months').textContent = (patternData.months||[]).length;
     document.getElementById('patternCards').style.display = 'block';
     document.getElementById('patternTitle').textContent =
-      `Vendor Pattern — ${res.vendors_with_gaps} gaps found across ${res.total_vendors} vendors`;
+      `Vendor Pattern — ${patternData.vendors_with_gaps} gaps found across ${patternData.total_vendors} vendors`;
 
+    // Track synced FYs for pattern too
+    const pFrom = document.getElementById('pDateFrom').value;
+    const pTo   = document.getElementById('pDateTo').value;
+    if (pFrom && pTo) {
+      let pc = new Date(pFrom); const pe = new Date(pTo);
+      while (pc <= pe) {
+        syncedPatternFYs.add(dateToFY(pc.toISOString().split('T')[0]));
+        pc.setMonth(pc.getMonth() + 1);
+      }
+    }
     savePatternState();
     renderPattern();
     toast(res.vendors_with_gaps > 0
@@ -1674,26 +1797,38 @@ function onDFYChange() {
 let pSortCol = 'gaps'; let pSortDir = -1;
 
 function savePatternState() {
+  // Save small metadata always
   try {
-    localStorage.setItem('attPattern', JSON.stringify({
-      data: patternData,
+    localStorage.setItem('attPatternMeta', JSON.stringify({
       pViewFY: document.getElementById('pViewFY')?.value || 'all',
-      fy: document.getElementById('pViewFY')?.value || '2025-26',
-      scope: document.getElementById('pScope').value,
-      minMonths: document.getElementById('pMinMonths').value
+      scope: document.getElementById('pScope')?.value || 'expense',
+      minMonths: document.getElementById('pMinMonths')?.value || '2',
+      syncedFYs: [...syncedPatternFYs]
     }));
   } catch(e){}
+  // Save full data separately (may fail due to quota)
+  try {
+    localStorage.setItem('attPatternData', JSON.stringify(patternData));
+  } catch(e) { console.warn('Pattern data too large to cache'); }
 }
 
 function restorePatternState() {
   try {
-    const s = JSON.parse(localStorage.getItem('attPattern')||'null');
-    if (!s || !s.data?.vendors?.length) return;
-    patternData = s.data;
-    if (s.fy && document.getElementById('pViewFY')) document.getElementById('pViewFY').value = s.fy;
-    if (s.scope) document.getElementById('pScope').value = s.scope;
-    if (s.minMonths) document.getElementById('pMinMonths').value = s.minMonths;
-    onFYChange();
+    const m = JSON.parse(localStorage.getItem('attPatternMeta')||'null');
+    const d = (() => { try { return JSON.parse(localStorage.getItem('attPatternData')||'null'); } catch(e){return null;} })();
+    if (!m) return;
+    if (d?.vendors?.length) patternData = d;
+
+    if (m.syncedFYs) m.syncedFYs.forEach(fy => syncedPatternFYs.add(fy));
+    if (m.scope) document.getElementById('pScope').value = m.scope;
+    if (m.minMonths) document.getElementById('pMinMonths').value = m.minMonths;
+
+    if (!patternData?.vendors?.length) {
+      // Data not cached but we know which FYs were synced
+      populateViewFYFromSynced('pViewFY', syncedPatternFYs, []);
+      if (m.pViewFY) document.getElementById('pViewFY').value = m.pViewFY;
+      return;
+    }
 
     const badge = document.getElementById('cnt-pattern');
     badge.textContent = patternData.vendors_with_gaps || 0;
@@ -1704,13 +1839,13 @@ function restorePatternState() {
     document.getElementById('patternCards').style.display = 'block';
     document.getElementById('patternTitle').textContent =
       `Vendor Pattern — ${patternData.vendors_with_gaps} gaps found across ${patternData.total_vendors} vendors`;
-    // Repopulate view FY from saved months
-    const allPatternDates = (patternData.months||[]).map(m => m + '-01');
-    populateViewFY(allPatternDates, 'pViewFY');
-    if (s.pViewFY) document.getElementById('pViewFY').value = s.pViewFY;
+
+    const patDates = (patternData.months||[]).map(mo => mo + '-01');
+    populateViewFYFromSynced('pViewFY', syncedPatternFYs, patDates);
+    if (m.pViewFY) document.getElementById('pViewFY').value = m.pViewFY;
     applyPatternFYView();
     renderPattern();
-  } catch(e){}
+  } catch(e){ console.error('restorePatternState:', e); }
 }
 
 function sortPattern(col) {
@@ -1853,11 +1988,21 @@ async function runDeviation() {
     const res = await r.json();
     if (!res.ok) throw new Error(res.error||'Failed');
 
-    devData     = res.deviations || [];
+    // Track synced FYs for deviation (even if 0 deviations found)
+    let dc = new Date(dateFrom); const de = new Date(dateTo);
+    while (dc <= de) {
+      syncedDeviationFYs.add(dateToFY(dc.toISOString().split('T')[0]));
+      dc.setMonth(dc.getMonth() + 1);
+    }
+
+    // Merge: remove deviations in synced date range, keep others (accumulate)
+    const dPreserved = devData.filter(r => r.date < dateFrom || r.date > dateTo);
+    devData     = [...dPreserved, ...(res.deviations || [])];
+    devData.sort((a, b) => a.vendor.localeCompare(b.vendor) || a.date.localeCompare(b.date));
     devFiltered = [...devData];
     devPage     = 1;
     // Auto-populate View FY from actual deviation dates
-    populateViewFY(devData.map(r => r.date), 'dViewFY');
+    populateViewFYFromSynced('dViewFY', syncedDeviationFYs, devData.map(r => r.date));
     applyDeviationFYView();
 
     document.getElementById('dc-vendors').textContent  = res.vendors_checked || 0;
@@ -1872,7 +2017,15 @@ async function runDeviation() {
     badge.className   = `nav-badge ${(res.total_deviations||0)>0?'':'zero'}`;
 
     // Save to localStorage
-    try { localStorage.setItem('attDeviation', JSON.stringify({ data:devData, fy:document.getElementById('dViewFY')?.value||'2025-26', scope:document.getElementById('dScope')?.value||'expense', minMonths:minMonthsToEstablish })); } catch(e){}
+    try {
+      localStorage.setItem('attDeviationMeta', JSON.stringify({
+        fy: document.getElementById('dViewFY')?.value||'all',
+        scope: document.getElementById('dScope')?.value||'expense',
+        minMonths: minMonthsToEstablish,
+        syncedFYs: [...syncedDeviationFYs]
+      }));
+    } catch(e){}
+    try { localStorage.setItem('attDeviationData', JSON.stringify(devData)); } catch(e){ console.warn('Deviation data too large to cache'); }
 
     renderDeviation();
     toast(res.total_deviations>0
@@ -1887,31 +2040,34 @@ async function runDeviation() {
 
 function restoreDeviationState() {
   try {
-    const s = JSON.parse(localStorage.getItem('attDeviation')||'null');
-    if (!s||!s.data?.length) return;
-    devData     = s.data;
+    const m = JSON.parse(localStorage.getItem('attDeviationMeta')||'null');
+    const d = (() => { try { return JSON.parse(localStorage.getItem('attDeviationData')||'null'); } catch(e){ return null; } })();
+    if (!m) return;
+
+    if (m.syncedFYs) m.syncedFYs.forEach(fy => syncedDeviationFYs.add(fy));
+    if (m.scope)     document.getElementById('dScope').value     = m.scope;
+    if (m.minMonths) document.getElementById('dMinMonths').value = m.minMonths;
+
+    if (!d?.length) {
+      populateViewFYFromSynced('dViewFY', syncedDeviationFYs, []);
+      if (m.fy) document.getElementById('dViewFY').value = m.fy;
+      return;
+    }
+    devData     = d;
     devFiltered = [...devData];
-    if (s.fy && document.getElementById('dViewFY')) document.getElementById('dViewFY').value = s.fy;
-    if (s.scope) document.getElementById('dScope').value = s.scope;
-    if (s.minMonths) document.getElementById('dMinMonths').value = s.minMonths;
-    onDFYChange();
     const cnt = document.getElementById('cnt-deviation');
     cnt.textContent = devData.length;
     cnt.className   = `nav-badge ${devData.length>0?'':'zero'}`;
-    document.getElementById('dc-vendors').textContent  = '—';
     document.getElementById('dc-total').textContent    = devData.length;
-    document.getElementById('dc-affected').textContent = new Set(devData.map(d=>d.partner_id)).size;
+    document.getElementById('dc-affected').textContent = new Set(devData.map(r=>r.partner_id)).size;
     document.getElementById('deviationCards').style.display = 'block';
-    document.getElementById('deviationTitle').textContent =
-      `Account Deviation — ${devData.length} deviations`;
-    // Repopulate view FY
-    populateViewFY(devData.map(r => r.date), 'dViewFY');
-    if (s.fy) document.getElementById('dViewFY').value = s.fy;
+    document.getElementById('deviationTitle').textContent = `Account Deviation — ${devData.length} deviations`;
+    populateViewFYFromSynced('dViewFY', syncedDeviationFYs, devData.map(r => r.date));
+    if (m.fy) document.getElementById('dViewFY').value = m.fy;
     applyDeviationFYView();
     renderDeviation();
-  } catch(e){}
+  } catch(e){ console.error('restoreDeviationState:', e); }
 }
-
 function sortDev(col) {
   if (devSortCol===col) devSortDir*=-1; else { devSortCol=col; devSortDir=1; }
   devFiltered.sort((a,b) => {
@@ -2091,6 +2247,52 @@ function initFYViewLabels() {
     if (lbl) lbl.textContent = from ? `${from}  →  ${to}` : 'Showing all synced data';
   }
 }
+// ── Clear accumulated data functions ─────────────────────────
+function clearAuditData() {
+  if (!confirm('Clear all accumulated Missing Attachments data? This cannot be undone.')) return;
+  allData = []; filtered = []; lastMeta = {};
+  try { localStorage.removeItem('attAudit'); } catch(e){}
+  populateViewFY([], 'viewFY');
+  renderTable();
+  updateDash({ total:0, missing:0, withAtt:0, accs:0, excluded:0,
+    dateFrom:'—', dateTo:'—', accountScope:'—', entryType:'—' });
+  document.getElementById('cnt-missing').textContent = '0';
+  document.getElementById('cnt-missing').className = 'nav-badge zero';
+  toast('Missing Attachments data cleared', 'info');
+  closeSyncPanel();
+}
+
+function clearPatternData() {
+  if (!confirm('Clear all accumulated Vendor Pattern data?')) return;
+  patternData = { months:[], vendors:[], total_vendors:0, vendors_with_gaps:0 };
+  try { localStorage.removeItem('attPattern'); } catch(e){}
+  populateViewFY([], 'pViewFY');
+  document.getElementById('patternHead').innerHTML = '';
+  document.getElementById('patternBody').innerHTML = '';
+  document.getElementById('patternEmpty').style.display = 'block';
+  document.getElementById('patternCards').style.display = 'none';
+  document.getElementById('cnt-pattern').textContent = '0';
+  document.getElementById('cnt-pattern').className = 'nav-badge zero';
+  document.getElementById('patternTitle').textContent = 'Vendor Recurring Pattern';
+  toast('Vendor Pattern data cleared', 'info');
+  document.getElementById('patternSyncPanel').style.display = 'none';
+}
+
+function clearDeviationData() {
+  if (!confirm('Clear all accumulated Account Deviation data?')) return;
+  devData = []; devFiltered = [];
+  try { localStorage.removeItem('attDeviation'); } catch(e){}
+  populateViewFY([], 'dViewFY');
+  document.getElementById('deviationBody').innerHTML = '';
+  document.getElementById('deviationEmpty').style.display = 'block';
+  document.getElementById('deviationCards').style.display = 'none';
+  document.getElementById('cnt-deviation').textContent = '0';
+  document.getElementById('cnt-deviation').className = 'nav-badge zero';
+  document.getElementById('deviationTitle').textContent = 'Account Head Deviation';
+  toast('Account Deviation data cleared', 'info');
+  document.getElementById('deviationSyncPanel').style.display = 'none';
+}
+
 // Ctrl+R → run audit
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey||e.metaKey) && e.key==='r') { e.preventDefault(); runAudit(); }
