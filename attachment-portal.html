@@ -52,8 +52,13 @@
   /* ── App Body ── */
   .app-body { display: flex; flex: 1; overflow: hidden; }
 
-  /* ── Sidebar ── */
-  .sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  /* ── Sidebar: auto-collapse ── */
+  .sidebar { width: 56px; min-width: 56px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; transition: width .22s ease; flex-shrink: 0; position: relative; z-index: 100; }
+  .sidebar:hover { width: 240px; box-shadow: 4px 0 12px rgba(0,0,0,.1); }
+  .sidebar .sidebar-cmd .cmd-btn span, .sidebar .nav-item span, .sidebar .nav-section-label, .sidebar .sidebar-footer .cmd-btn span, .sidebar-footer .cmd-btn-text { opacity: 0; transition: opacity .15s .05s; white-space: nowrap; overflow: hidden; }
+  .sidebar:hover .sidebar-cmd .cmd-btn span, .sidebar:hover .nav-item span, .sidebar:hover .nav-section-label, .sidebar:hover .sidebar-footer .cmd-btn span, .sidebar:hover .cmd-btn-text { opacity: 1; }
+  .nav-badge { opacity: 0; transition: opacity .15s .05s; }
+  .sidebar:hover .nav-badge { opacity: 1; }
   .sidebar-cmd { padding: 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
   .sidebar-nav { flex: 1; overflow-y: auto; padding: 8px 0; }
   .nav-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); padding: 12px 16px 4px; }
@@ -65,6 +70,14 @@
   .nav-badge { margin-left: auto; background: var(--danger); color: #fff; border-radius: 10px; font-size: 10px; font-weight: 700; min-width: 20px; height: 20px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; }
   .nav-badge.zero { background: #c8c6c4; }
   .sidebar-footer { border-top: 1px solid var(--border); padding: 12px; }
+  /* Collapsed state: only icons visible, text hidden */
+  .sidebar .sidebar-cmd { padding: 10px; }
+  .sidebar:not(:hover) .sidebar-cmd .cmd-btn { padding: 9px 0; justify-content: center; border-radius: 50%; }
+  .sidebar:not(:hover) .nav-item { padding: 10px 0; justify-content: center; border-left: 3px solid transparent; }
+  .sidebar:not(:hover) .nav-item.active { border-left-color: var(--primary); }
+  .sidebar:not(:hover) .sidebar-footer { padding: 8px 0; display: flex; justify-content: center; }
+  .sidebar:not(:hover) .sidebar-footer .cmd-btn { padding: 9px 0; justify-content: center; width: 40px; }
+  .sidebar:not(:hover) .nav-section-label { padding: 8px 0 4px; text-align: center; letter-spacing: 0; }
 
   /* ── Buttons ── */
   .cmd-btn { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: none; background: transparent; color: var(--text); font-size: 13px; cursor: pointer; border-radius: var(--radius); transition: background .15s; width: 100%; text-align: left; font-family: inherit; }
@@ -227,6 +240,15 @@
   .gap-badge.zero { background: #dff6dd; color: #107c10; }
   .pattern-stat { font-size: 11px; color: var(--text2); }
   .account-cell  { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text2); }
+
+  /* ── BS Account hover tooltip ── */
+  .bs-wrap { position: relative; display: inline-block; }
+  .bs-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-size: 11px; font-weight: 700; cursor: default; border: 1px solid #c7e0f4; flex-shrink: 0; }
+  .bs-icon.empty { background: #f3f2f1; color: var(--text3); border-color: var(--border); }
+  .bs-tooltip { display: none; position: absolute; right: 0; top: 26px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 10px 14px; min-width: 240px; max-width: 320px; z-index: 100; font-size: 12px; color: var(--text); white-space: normal; line-height: 1.6; }
+  .bs-tooltip::before { content: ''; position: absolute; top: -6px; right: 6px; width: 10px; height: 10px; background: #fff; border-left: 1px solid var(--border); border-top: 1px solid var(--border); transform: rotate(45deg); }
+  .bs-tooltip-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--text3); margin-bottom: 5px; }
+  .bs-wrap:hover .bs-tooltip { display: block; }
 </style>
 </head>
 <body>
@@ -269,7 +291,7 @@
     <div class="sidebar-cmd">
       <button class="cmd-btn primary" onclick="runAudit()">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
-        Fetch from Odoo
+        <span>Fetch from Odoo</span>
       </button>
     </div>
 
@@ -278,18 +300,18 @@
 
       <div class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4zM3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707zM2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10zm9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5zm.754-4.246a.389.389 0 0 0-.527-.02L9.373 7.448a.5.5 0 0 0 .655.757l2.354-2.036a.389.389 0 0 0 .032-.527l-.16-.19z"/><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/></svg>
-        Dashboard
+        <span>Dashboard</span>
       </div>
 
       <div class="nav-item" id="nav-missing" onclick="switchTab('missing')">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/><path d="M8 6.5a.5.5 0 0 1 .5.5v1.5H10a.5.5 0 0 1 0 1H8.5V11a.5.5 0 0 1-1 0V9.5H6a.5.5 0 0 1 0-1h1.5V7a.5.5 0 0 1 .5-.5z"/></svg>
-        Missing Attachments
+        <span>Missing Attachments</span>
         <span class="nav-badge zero" id="cnt-missing">0</span>
       </div>
 
       <div class="nav-item" id="nav-pattern" onclick="switchTab('pattern')">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 0h1v15h15v1H0V0Zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07z"/></svg>
-        Vendor Pattern
+        <span>Vendor Pattern</span>
         <span class="nav-badge zero" id="cnt-pattern">0</span>
       </div>
 
@@ -297,14 +319,14 @@
 
       <div class="nav-item" onclick="exportCSV()">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
-        Export CSV
+        <span>Export CSV</span>
       </div>
     </div>
 
     <div class="sidebar-footer">
       <button class="cmd-btn" onclick="openSettings()" style="color:var(--text2); font-size:12px">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.892 3.433-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.892-1.64-.901-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.474l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/></svg>
-        Odoo Settings
+        <span class="cmd-btn-text">Odoo Settings</span>
       </button>
     </div>
   </div>
@@ -359,23 +381,14 @@
               </div>
             </div>
           </div>
-        </div>
-
-        <div id="dashGrid" style="display:none; margin-top:20px;">
-          <div class="dash-panel">
-            <div class="dash-panel-title">Last Audit Summary</div>
-            <ul class="dash-list">
-              <li><span class="lbl">Date Range</span>   <span class="val" id="ds-range">—</span></li>
-              <li><span class="lbl">Scope</span>        <span class="val" id="ds-scope">—</span></li>
-              <li><span class="lbl">Entry Type</span>   <span class="val" id="ds-type">—</span></li>
-              <li><span class="lbl">Accounts Scanned</span><span class="val" id="ds-accs">—</span></li>
-              <li><span class="lbl">Total Entries</span><span class="val" id="ds-total">—</span></li>
-              <li><span class="lbl">Missing</span>      <span class="val red" id="ds-missing">—</span></li>
-              <li><span class="lbl">Compliance</span>   <span class="val green" id="ds-pct">—</span></li>
-            </ul>
+          <div class="info-card hl-red">
+            <div class="info-card-label">Missing Invoice Value</div>
+            <div class="info-card-value red" id="card-missing-amt" style="font-size:20px">—</div>
+            <div class="info-card-sub" id="card-missing-amt-sub">Sum of unattached entries</div>
           </div>
-
         </div>
+
+
       </div>
     </div>
 
@@ -452,7 +465,7 @@
                 <th onclick="sortBy('bill_ref')">Bill Reference</th>
                 <th onclick="sortBy('narration')">Narration</th>
                 <th onclick="sortBy('expense_accounts')">Expense Account(s)</th>
-                <th onclick="sortBy('bs_accounts')">Liability / BS Account(s)</th>
+                <th style="width:36px;text-align:center" title="Liability / BS Account(s)">BS</th>
                 <th onclick="sortBy('amount')" style="text-align:right">Amount (₹)</th>
                 <th style="width:56px; text-align:center">Open</th>
               </tr>
@@ -797,16 +810,15 @@ function updateDash(m) {
   bar.style.width      = pct + '%';
   bar.style.background = pct >= 90 ? 'var(--success)' : pct >= 60 ? 'var(--accent-yellow)' : 'var(--danger)';
 
-  const scopeLabel = { expense:'Expense Accounts', all_pl:'All P&L Accounts', all:'All Accounts' };
-  const typeLabel  = { entry:'Journal Entries', in_invoice:'Vendor Bills', all:'All Types' };
-  document.getElementById('ds-range').textContent   = `${m.dateFrom}  →  ${m.dateTo}`;
-  document.getElementById('ds-scope').textContent   = scopeLabel[m.accountScope] || m.accountScope;
-  document.getElementById('ds-type').textContent    = typeLabel[m.entryType]    || m.entryType;
-  document.getElementById('ds-accs').textContent    = `${m.accs} (${m.excluded} excluded)`;
-  document.getElementById('ds-total').textContent   = m.total;
-  document.getElementById('ds-missing').textContent = m.missing;
-  document.getElementById('ds-pct').textContent     = pct + '%';
-  document.getElementById('dashGrid').style.display = 'grid';
+  // Missing invoice total value
+  const missingAmt = (allData || []).reduce((s, r) => s + (r.amount || 0), 0);
+  const fmtAmt = missingAmt >= 10000000
+    ? '₹' + (missingAmt / 10000000).toFixed(2) + ' Cr'
+    : missingAmt >= 100000
+      ? '₹' + (missingAmt / 100000).toFixed(2) + ' L'
+      : '₹' + missingAmt.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  document.getElementById('card-missing-amt').textContent     = fmtAmt;
+  document.getElementById('card-missing-amt-sub').textContent = `Across ${m.missing} unattached entries`;
 
   document.getElementById('missingTitle').textContent = `Missing Attachments (${m.missing} of ${m.total})`;
 
@@ -839,7 +851,7 @@ function sortBy(col) {
   sortDir = sortCol === col ? -sortDir : 1;
   sortCol = col;
   document.querySelectorAll('.data-table th').forEach(th => th.classList.remove('asc','desc'));
-  const thIdx = { entry_no:1, date:2, type_label:3, journal:4, partner:5, bill_ref:6, narration:7, expense_accounts:8, bs_accounts:9, amount:10 };
+  const thIdx = { entry_no:1, date:2, type_label:3, journal:4, partner:5, bill_ref:6, narration:7, expense_accounts:8, amount:9 };
   const ths   = document.querySelectorAll('.data-table th');
   if (thIdx[col]) ths[thIdx[col]].classList.add(sortDir === 1 ? 'asc' : 'desc');
   filtered.sort((a,b) => {
@@ -890,7 +902,12 @@ function renderTable() {
         <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2)" title="${x(r.bill_ref)}">${x(r.bill_ref)||'—'}</td>
         <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2)" title="${x(r.narration)}">${x(r.narration)||'—'}</td>
         <td class="account-cell" title="${x(r.expense_accounts)}">${x(r.expense_accounts)||'—'}</td>
-        <td class="account-cell" title="${x(r.bs_accounts)}">${x(r.bs_accounts)||'—'}</td>
+        <td style="text-align:center">
+          <div class="bs-wrap">
+            <span class="bs-icon${r.bs_accounts ? '' : ' empty'}" title="${r.bs_accounts ? 'Hover to see BS accounts' : 'No BS accounts'}">${r.bs_accounts ? 'ⓘ' : '—'}</span>
+            ${r.bs_accounts ? `<div class="bs-tooltip"><div class="bs-tooltip-label">Liability / BS Account(s)</div>${x(r.bs_accounts).replace(/\|/g, '<br>')}</div>` : ''}
+          </div>
+        </td>
         <td class="amt">${amt}</td>
         <td style="text-align:center">
           <a class="icon-btn" href="${link}" target="_blank" title="Open in Odoo">

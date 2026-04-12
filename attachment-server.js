@@ -351,7 +351,7 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
       // narration = Narration field only (internal description, m.narration in Odoo)
       // These are kept strictly separate — never merged or used as fallback for each other
       const billRef   = (m.ref      || '').trim();
-      const narration = (m.narration || '').trim().substring(0, 150);
+      const narration = (m.narration || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim().substring(0, 150);
 
       // Entry type label
       const typeLabel = {
