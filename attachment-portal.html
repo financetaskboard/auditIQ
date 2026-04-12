@@ -1025,8 +1025,9 @@ let syncedDeviationFYs = new Set();
 window.addEventListener('DOMContentLoaded', async () => {
   setDefaultDates();
   initSidebar();
-  onFYChange();
-  onDFYChange();
+  // onFYChange/onDFYChange only apply when those sync panel elements exist
+  if (document.getElementById('pFY'))  onFYChange();
+  if (document.getElementById('dFY'))  onDFYChange();
 
   // Step 1: Load settings + check Firebase status in parallel
   try {
@@ -1852,14 +1853,14 @@ function renderPattern() {
 
     return `<tr>
       <td style="font-weight:600;font-size:13px">${x(v.partner_name)}</td>
-      <td style="text-align:center"><span class="pattern-stat">${v.active_months}/${visibleMonths.length}</span></td>
+      <td style="text-align:center"><span class="pattern-stat">${v.active_months}/${months.length}</span></td>
       <td style="text-align:center"><span class="${gapCount>0?'gap-badge':'gap-badge zero'}">${gapCount}</span></td>
       <td style="text-align:right;font-family:'Courier New',monospace">₹${avg}</td>
       ${cells}
     </tr>`;
   }).join('');
 
-  info.textContent = `Showing ${vendors.length} vendors · ${filter==='gaps'?'filtered to vendors with gaps':'all recurring vendors'} · ${visibleMonths.length} of ${months.length} months`;
+  info.textContent = `Showing ${vendors.length} vendors · ${filter==='gaps'?'filtered to vendors with gaps':'all recurring vendors'} · ${months.length} months`;
 }
 
 function exportPattern() {
@@ -1875,8 +1876,8 @@ function exportPattern() {
 
   const rows = vendors.map(v => {
     const gapCount = v.missing_months.filter(m => {
-      const idx = visibleMonths.indexOf(m);
-      return visibleMonths.slice(0,idx).some(mm=>v.monthly[mm]) && visibleMonths.slice(idx+1).some(mm=>v.monthly[mm]);
+      const idx = months.indexOf(m);
+      return months.slice(0,idx).some(mm=>v.monthly[mm]) && months.slice(idx+1).some(mm=>v.monthly[mm]);
     }).length;
     const monthCols = months.map(m => v.monthly[m] ? v.monthly[m].amount.toFixed(2) : '');
     return [v.partner_name, v.active_months, gapCount, v.total_amount.toFixed(2), v.avg_monthly.toFixed(0), ...monthCols];
