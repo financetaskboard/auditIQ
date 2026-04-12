@@ -473,6 +473,11 @@
     </div>
     <div class="modal-body">
       <div id="modalAlert"></div>
+      <div id="cloudBanner" style="display:none; padding:10px 14px; background:#fff4ce; border-left:3px solid #ffb900; border-radius:2px; font-size:13px; margin-bottom:14px; color:#7a4f00;">
+        ☁ <strong>Cloud Mode (Render)</strong> — Credentials are set via environment variables in your Render dashboard. 
+        Go to <strong>Render → Your Service → Environment</strong> and set:<br>
+        <code style="font-size:11px;background:#f3f2f1;padding:2px 6px;border-radius:2px;margin-top:6px;display:inline-block">ODOO_URL &nbsp; ODOO_DB &nbsp; ODOO_USERNAME &nbsp; ODOO_API_KEY</code>
+      </div>
       <div class="form-grid">
         <div class="form-group full">
           <label class="form-label">Odoo URL</label>
@@ -505,7 +510,9 @@
 
 <script>
 // ── Config ────────────────────────────────────────────────────
-const PROXY    = 'http://localhost:3002';
+// Works both locally (localhost:3002) and on Render/cloud
+// because the HTML is served by the same Node.js server.
+const PROXY    = window.location.origin;
 const PAGE_SZ  = 100;
 
 // ── State ─────────────────────────────────────────────────────
@@ -541,16 +548,16 @@ function pingProxy() {
   text.textContent = 'Connecting…';
   fetch(`${PROXY}/health`)
     .then(r => r.json())
-    .then(() => {
+    .then(h => {
       dot.className = 'status-dot connected';
-      text.textContent = 'Proxy Online';
-      // also load settings for display
+      text.textContent = h.cloudMode ? 'Live on Render ☁' : 'Proxy Online';
       fetch(`${PROXY}/api/settings`).then(r=>r.json()).then(applySettingsUI).catch(()=>{});
     })
     .catch(() => {
       dot.className = 'status-dot';
-      text.textContent = 'Proxy Offline — run: node attachment-server.js';
-      toast('Proxy offline. Open terminal and run: node attachment-server.js', 'error');
+      const isLocal = ['localhost','127.0.0.1'].includes(window.location.hostname);
+      text.textContent = isLocal ? 'Proxy Offline — run: node attachment-server.js' : 'Server Error';
+      if (isLocal) toast('Proxy offline. Run: node attachment-server.js', 'error');
     });
 }
 
@@ -826,12 +833,29 @@ function exportCSV() {
 }
 
 // ── Settings modal ────────────────────────────────────────────
+let isCloudMode = false;
 function openSettings() {
   fetch(`${PROXY}/api/settings`).then(r=>r.json()).then(s => {
+    isCloudMode = !!s.cloudMode;
     document.getElementById('cfg-url').value  = s.url      || '';
     document.getElementById('cfg-db').value   = s.db       || '';
     document.getElementById('cfg-user').value = s.username || '';
     document.getElementById('cfg-key').value  = s.apiKey   || '';
+
+    const cloudBanner = document.getElementById('cloudBanner');
+    if (s.cloudMode) {
+      cloudBanner.style.display = 'block';
+      document.getElementById('cfg-url').disabled  = true;
+      document.getElementById('cfg-db').disabled   = true;
+      document.getElementById('cfg-user').disabled = true;
+      document.getElementById('cfg-key').disabled  = true;
+    } else {
+      cloudBanner.style.display = 'none';
+      document.getElementById('cfg-url').disabled  = false;
+      document.getElementById('cfg-db').disabled   = false;
+      document.getElementById('cfg-user').disabled = false;
+      document.getElementById('cfg-key').disabled  = false;
+    }
   }).catch(()=>{});
   document.getElementById('settingsOverlay').classList.add('open');
 }
@@ -840,6 +864,10 @@ function closeSettings() {
   document.getElementById('modalAlert').innerHTML = '';
 }
 async function saveSettings() {
+  if (isCloudMode) {
+    toast('Cloud mode: update credentials via Render environment variables', 'info');
+    closeSettings(); return;
+  }
   const body = {
     url:      document.getElementById('cfg-url').value.trim(),
     db:       document.getElementById('cfg-db').value.trim(),

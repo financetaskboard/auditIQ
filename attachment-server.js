@@ -14,21 +14,46 @@ const fs      = require('fs');
 const path    = require('path');
 
 const app  = express();
-const PORT = 3002;
+const PORT = process.env.PORT || 3002;
+
+// ── Cloud detection ────────────────────────────────────────────
+// On Render (or any cloud), PORT is set by the platform.
+// When PORT env var is set by platform, we treat this as cloud mode
+// and read credentials from env vars instead of a local file.
+const IS_CLOUD = !!process.env.RENDER || !!process.env.RAILWAY_ENVIRONMENT || false;
 
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '10mb' }));
 
-// ── Settings (reuses same odoo-settings.json) ──────────────────
+// ── Settings ───────────────────────────────────────────────────
+// Cloud (Render): reads from environment variables
+// Local:          reads from odoo-settings.json file
 const SETTINGS_FILE = path.join(__dirname, 'odoo-settings.json');
 
 function loadSettings() {
+  // Cloud mode — use environment variables set in Render dashboard
+  if (IS_CLOUD || process.env.ODOO_URL) {
+    return {
+      url:      process.env.ODOO_URL      || '',
+      db:       process.env.ODOO_DB       || '',
+      username: process.env.ODOO_USERNAME || '',
+      apiKey:   process.env.ODOO_API_KEY  || ''
+    };
+  }
+  // Local mode — read from JSON file
   try {
     if (fs.existsSync(SETTINGS_FILE)) return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
   } catch (e) {}
   return {};
 }
+
 function saveSettings(data) {
+  if (IS_CLOUD) {
+    // On cloud, settings come from env vars — can't write to disk persistently.
+    // Just acknowledge; user must update env vars in Render dashboard.
+    console.warn('⚠  Running on cloud — settings saved in-memory only. Update env vars in Render dashboard for permanent changes.');
+    return;
+  }
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
 }
 
@@ -71,18 +96,21 @@ async function odooCall(session, model, method, args = [], kwargs = {}) {
 
 // ── GET /health ────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', server: 'Attachment Audit Proxy v1', port: PORT, time: new Date().toISOString() });
+  res.json({ status: 'ok', server: 'Attachment Audit Proxy v1', port: PORT, cloudMode: IS_CLOUD, time: new Date().toISOString() });
 });
 
 // ── GET /api/settings ──────────────────────────────────────────
 app.get('/api/settings', (req, res) => {
   const s = loadSettings();
-  res.json({ ...s, apiKey: s.apiKey ? '••••••••' : '' });
+  res.json({ ...s, apiKey: s.apiKey ? '••••••••' : '', cloudMode: IS_CLOUD });
 });
 
 // ── POST /api/settings ─────────────────────────────────────────
 app.post('/api/settings', (req, res) => {
   try {
+    if (IS_CLOUD) {
+      return res.json({ ok: true, cloudMode: true, message: 'Running on cloud — update credentials via Render environment variables (ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY).' });
+    }
     const s = loadSettings();
     const incoming = req.body;
     if (incoming.apiKey === '••••••••') delete incoming.apiKey;
@@ -328,20 +356,24 @@ app.get('/', (req, res) => {
 // ── Start ──────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n╔══════════════════════════════════════════════════════╗`);
-  console.log(`║  Attachment Audit Proxy  v1.0  →  localhost:${PORT}    ║`);
-  console.log(`║  Finds journal entries with MISSING attachments      ║`);
+  console.log(`║  Attachment Audit Proxy  v1.0  →  port ${PORT}          ║`);
+  console.log(`║  Mode: ${IS_CLOUD ? '☁  CLOUD (Render)                      ' : '💻 LOCAL                               '}  ║`);
   console.log(`╠══════════════════════════════════════════════════════╣`);
   console.log(`║  GET  /health                    server check        ║`);
   console.log(`║  POST /api/test                  test Odoo login     ║`);
   console.log(`║  GET  /api/settings              load credentials    ║`);
   console.log(`║  POST /api/settings              save credentials    ║`);
   console.log(`║  POST /api/sync/missing-attachments  <── MAIN        ║`);
-  console.log(`║       body: { dateFrom, dateTo,                      ║`);
-  console.log(`║              accountScope, entryType }               ║`);
   console.log(`║  GET  /api/journals              journal list        ║`);
   console.log(`╚══════════════════════════════════════════════════════╝\n`);
 
-  const s = loadSettings();
-  if (s.url) console.log(`  Odoo: ${s.url}  DB: ${s.db}  User: ${s.username}\n`);
-  else       console.log(`  ⚠ No settings — open http://localhost:${PORT} → Settings\n`);
+  if (IS_CLOUD) {
+    const s = loadSettings();
+    if (s.url) console.log(`  ☁  Cloud mode — Odoo: ${s.url}  DB: ${s.db}\n`);
+    else       console.log(`  ⚠  Cloud mode — Set env vars: ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY\n`);
+  } else {
+    const s = loadSettings();
+    if (s.url) console.log(`  Odoo: ${s.url}  DB: ${s.db}  User: ${s.username}\n`);
+    else       console.log(`  ⚠  No settings — open http://localhost:${PORT} → Settings\n`);
+  }
 });

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: odoo-attachment-audit
+    runtime: node
+    buildCommand: npm install
+    startCommand: node attachment-server.js
+    envVars:
+      - key: ODOO_URL
+        sync: false        # You will fill this in the Render dashboard
+      - key: ODOO_DB
+        sync: false
+      - key: ODOO_USERNAME
+        sync: false
+      - key: ODOO_API_KEY
+        sync: false
