@@ -367,7 +367,7 @@
 
       <div style="padding:20px 24px; overflow-y:auto;">
         <div class="section-title">Attachment Audit</div>
-        <div class="section-desc">Identify posted journal entries that are missing supporting attachments in Odoo.</div>
+        <div class="section-desc">Identify posted journal entries that are missing supporting attachments in Odoo. Switch to the <strong>Missing Attachments</strong> tab and select a View FY to filter results.</div>
 
         <div id="dashAlert" class="alert alert-info">
           <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
@@ -416,12 +416,8 @@
       <!-- Topbar -->
       <div class="content-topbar">
         <span class="content-topbar-title" id="missingTitle">Missing Attachments</span>
+        <span id="missingFYLabel" style="font-size:11px;color:var(--text2);background:var(--primary-light);padding:2px 10px;border-radius:10px;margin-left:4px"></span>
         <div class="content-topbar-actions">
-          <button class="topbar-btn" onclick="runAudit()">
-            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
-            Re-fetch
-          </button>
-          <div class="topbar-sep"></div>
           <button class="topbar-btn primary" onclick="exportCSV()">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
             Export CSV
@@ -429,23 +425,20 @@
         </div>
       </div>
 
-      <!-- Filter Bar -->
-      <div class="filter-bar">
+      <!-- View Filter Bar: FY selector filters loaded data, no Odoo call -->
+      <div class="filter-bar" style="background:#f8f7f6; border-bottom:2px solid var(--border);">
         <div class="filter-group">
-          <label class="filter-label">From</label>
-          <input type="date" class="fl-input" id="dateFrom" style="width:138px" />
+          <label class="filter-label" style="color:var(--primary);font-weight:700">📅 View FY</label>
+          <select class="fl-select" id="viewFY" style="width:130px;font-weight:600;border-color:var(--primary)" onchange="applyFYView()">
+            <option value="all">All Data</option>
+            <option value="2022-23">FY 2022-23</option>
+            <option value="2023-24">FY 2023-24</option>
+            <option value="2024-25">FY 2024-25</option>
+            <option value="2025-26" selected>FY 2025-26</option>
+            <option value="2026-27">FY 2026-27</option>
+          </select>
         </div>
-        <div class="filter-group">
-          <label class="filter-label">To</label>
-          <input type="date" class="fl-input" id="dateTo" style="width:138px" />
-        </div>
-        <div class="filter-group" style="gap:4px">
-          <button class="period-btn" onclick="setPeriod('today',this)">Today</button>
-          <button class="period-btn" onclick="setPeriod('thisWeek',this)">This Week</button>
-          <button class="period-btn" onclick="setPeriod('thisMonth',this)">This Month</button>
-          <button class="period-btn" onclick="setPeriod('lastMonth',this)">Last Month</button>
-          <button class="period-btn" onclick="setPeriod('thisYear',this)">This Year</button>
-        </div>
+        <span id="viewFYRange" style="font-size:11px;color:var(--text3);background:var(--primary-light);padding:2px 10px;border-radius:10px">2025-04-01 → 2026-03-31</span>
         <div class="filter-sep"></div>
         <div class="filter-group">
           <label class="filter-label">Scope</label>
@@ -463,8 +456,43 @@
             <option value="all">All Types</option>
           </select>
         </div>
-        <div style="margin-left:auto">
-          <input type="text" class="fl-input" id="searchBox" placeholder="🔍  Search…" style="width:220px" oninput="applyFilter()" />
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <input type="text" class="fl-input" id="searchBox" placeholder="🔍  Search…" style="width:200px" oninput="applyFilter()" />
+          <button class="topbar-btn" onclick="openSyncPanel()" title="Configure sync range and fetch from Odoo" style="white-space:nowrap;gap:4px">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Sync Settings
+          </button>
+        </div>
+      </div>
+
+      <!-- Sync Panel (hidden by default) -->
+      <div id="syncPanel" style="display:none;padding:10px 16px;background:#fffbe6;border-bottom:1px solid #ffe89a;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:#7a4f00">⬇ Sync from Odoo:</span>
+          <div class="filter-group">
+            <label class="filter-label">From</label>
+            <input type="date" class="fl-input" id="dateFrom" style="width:138px" />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">To</label>
+            <input type="date" class="fl-input" id="dateTo" style="width:138px" />
+          </div>
+          <div class="filter-group" style="gap:4px">
+            <span style="font-size:11px;color:#7a4f00;font-weight:600">Single FY:</span>
+            <button class="period-btn" onclick="setSyncFY('2023-24',this)">FY 23-24</button>
+            <button class="period-btn" onclick="setSyncFY('2024-25',this)">FY 24-25</button>
+            <button class="period-btn" onclick="setSyncFY('2025-26',this)" style="background:#d4edda;border-color:#28a745;color:#155724">FY 25-26</button>
+            <button class="period-btn" onclick="setSyncFY('2026-27',this)">FY 26-27</button>
+            <span style="font-size:11px;color:#7a4f00;font-weight:600;margin-left:6px">Multi FY:</span>
+            <button class="period-btn" onclick="setSyncMultiFY(2,'syncPanel',this)" title="Fetch FY 2024-25 + FY 2025-26 together">2 FYs</button>
+            <button class="period-btn" onclick="setSyncMultiFY(3,'syncPanel',this)" title="Fetch FY 2023-24 + 2024-25 + 2025-26 together">3 FYs</button>
+          </div>
+          <button class="topbar-btn primary" onclick="runAudit()" style="margin-left:8px">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Fetch Now
+          </button>
+          <span id="syncRangeInfo" style="font-size:11px;color:#7a4f00"></span>
+          <button onclick="closeSyncPanel()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#7a4f00;font-size:16px;padding:0 4px">✕</button>
         </div>
       </div>
 
@@ -524,32 +552,26 @@
         </div>
       </div>
 
-      <!-- Filter Bar -->
-      <div class="filter-bar">
+      <!-- View Filter Bar (client-side, no Odoo call) -->
+      <div class="filter-bar" style="background:#f8f7f6;border-bottom:2px solid var(--border);">
         <div class="filter-group">
-          <label class="filter-label">Financial Year</label>
-          <select class="fl-select" id="pFY" style="width:130px" onchange="onFYChange()">
+          <label class="filter-label" style="color:var(--primary);font-weight:700">📅 View FY</label>
+          <select class="fl-select" id="pViewFY" style="width:130px;font-weight:600;border-color:var(--primary)" onchange="applyPatternFYView()">
+            <option value="all">All Data</option>
+            <option value="2022-23">FY 2022-23</option>
             <option value="2023-24">FY 2023-24</option>
             <option value="2024-25">FY 2024-25</option>
             <option value="2025-26" selected>FY 2025-26</option>
             <option value="2026-27">FY 2026-27</option>
-            <option value="custom">Custom Range</option>
           </select>
         </div>
-        <div class="filter-group" id="pCustomRange" style="display:none">
-          <input type="date" class="fl-input" id="pDateFrom" style="width:132px" />
-          <span style="color:var(--text3);font-size:12px">to</span>
-          <input type="date" class="fl-input" id="pDateTo" style="width:132px" />
-        </div>
-        <div class="filter-group" id="pFYDisplay">
-          <span id="pFYLabel" style="font-size:12px;color:var(--text2);background:var(--primary-light);padding:3px 10px;border-radius:10px;font-weight:600;"></span>
-        </div>
+        <span id="pViewFYRange" style="font-size:11px;color:var(--text3);background:var(--primary-light);padding:2px 10px;border-radius:10px">2025-04-01 → 2026-03-31</span>
         <div class="filter-sep"></div>
         <div class="filter-group">
-          <label class="filter-label">Scope</label>
-          <select class="fl-select" id="pScope" style="width:150px">
-            <option value="expense">Expense Accounts</option>
-            <option value="all_pl">All P&amp;L Accounts</option>
+          <label class="filter-label" style="color:var(--danger)">Show</label>
+          <select class="fl-select" id="pFilter" style="width:135px" onchange="renderPattern()">
+            <option value="gaps">With Gaps Only</option>
+            <option value="all">All Vendors</option>
           </select>
         </div>
         <div class="filter-group">
@@ -560,15 +582,48 @@
             <option value="6">6+</option>
           </select>
         </div>
-        <div class="filter-group">
-          <label class="filter-label" style="color:var(--danger)">Show</label>
-          <select class="fl-select" id="pFilter" style="width:135px" onchange="renderPattern()">
-            <option value="gaps">With Gaps Only</option>
-            <option value="all">All Vendors</option>
-          </select>
-        </div>
-        <div style="margin-left:auto">
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
           <input type="text" class="fl-input" id="pSearch" placeholder="🔍  Search vendor…" style="width:200px" oninput="renderPattern()" />
+          <button class="topbar-btn" onclick="openPatternSyncPanel()" style="white-space:nowrap;gap:4px" title="Configure sync range">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Sync Settings
+          </button>
+        </div>
+      </div>
+      <!-- Sync Panel (hidden, opens on demand) -->
+      <div id="patternSyncPanel" style="display:none;padding:10px 16px;background:#fffbe6;border-bottom:1px solid #ffe89a;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:#7a4f00">⬇ Sync from Odoo:</span>
+          <div class="filter-group">
+            <label class="filter-label">From</label>
+            <input type="date" class="fl-input" id="pDateFrom" style="width:132px" />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">To</label>
+            <input type="date" class="fl-input" id="pDateTo" style="width:132px" />
+          </div>
+          <div class="filter-group" style="gap:4px">
+            <span style="font-size:11px;color:#7a4f00;font-weight:600">Single FY:</span>
+            <button class="period-btn" onclick="setPSyncFY('2023-24',this)">FY 23-24</button>
+            <button class="period-btn" onclick="setPSyncFY('2024-25',this)">FY 24-25</button>
+            <button class="period-btn" onclick="setPSyncFY('2025-26',this)" style="background:#d4edda;border-color:#28a745;color:#155724">FY 25-26</button>
+            <button class="period-btn" onclick="setPSyncFY('2026-27',this)">FY 26-27</button>
+            <span style="font-size:11px;color:#7a4f00;font-weight:600;margin-left:6px">Multi FY:</span>
+            <button class="period-btn" onclick="setSyncMultiFY(2,'patternSyncPanel',this)" title="Fetch 2 years at once">2 FYs</button>
+            <button class="period-btn" onclick="setSyncMultiFY(3,'patternSyncPanel',this)" title="Fetch 3 years at once">3 FYs</button>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Scope</label>
+            <select class="fl-select" id="pScope" style="width:140px">
+              <option value="expense">Expense Accounts</option>
+              <option value="all_pl">All P&amp;L Accounts</option>
+            </select>
+          </div>
+          <button class="topbar-btn primary" onclick="runPattern()" style="margin-left:4px">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Fetch Now
+          </button>
+          <button onclick="document.getElementById('patternSyncPanel').style.display='none'" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#7a4f00;font-size:16px;padding:0 4px">✕</button>
         </div>
       </div>
 
@@ -634,44 +689,68 @@
         </div>
       </div>
 
-      <!-- Filter Bar -->
-      <div class="filter-bar">
+      <!-- View Filter Bar (client-side only, no Odoo call) -->
+      <div class="filter-bar" style="background:#f8f7f6;border-bottom:2px solid var(--border);">
         <div class="filter-group">
-          <label class="filter-label">Financial Year</label>
-          <select class="fl-select" id="dFY" style="width:130px" onchange="onDFYChange()">
+          <label class="filter-label" style="color:var(--primary);font-weight:700">📅 View FY</label>
+          <select class="fl-select" id="dViewFY" style="width:130px;font-weight:600;border-color:var(--primary)" onchange="applyDeviationFYView()">
+            <option value="all">All Data</option>
+            <option value="2022-23">FY 2022-23</option>
             <option value="2023-24">FY 2023-24</option>
             <option value="2024-25">FY 2024-25</option>
             <option value="2025-26" selected>FY 2025-26</option>
             <option value="2026-27">FY 2026-27</option>
-            <option value="custom">Custom Range</option>
           </select>
         </div>
-        <div class="filter-group" id="dCustomRange" style="display:none">
-          <input type="date" class="fl-input" id="dDateFrom" style="width:132px" />
-          <span style="color:var(--text3);font-size:12px">to</span>
-          <input type="date" class="fl-input" id="dDateTo" style="width:132px" />
-        </div>
-        <div class="filter-group" id="dFYDisplay">
-          <span id="dFYLabel" style="font-size:12px;color:var(--text2);background:var(--primary-light);padding:3px 10px;border-radius:10px;font-weight:600;"></span>
-        </div>
+        <span id="dViewFYRange" style="font-size:11px;color:var(--text3);background:var(--primary-light);padding:2px 10px;border-radius:10px">2025-04-01 → 2026-03-31</span>
         <div class="filter-sep"></div>
         <div class="filter-group">
-          <label class="filter-label">Scope</label>
-          <select class="fl-select" id="dScope" style="width:150px">
-            <option value="expense">Expense Accounts</option>
-            <option value="all_pl">All P&amp;L Accounts</option>
+          <label class="filter-label" title="Account must appear in N distinct months to be established">Establish after</label>
+          <select class="fl-select" id="dMinMonths" style="width:90px">
+            <option value="1">1 month</option>
+            <option value="2" selected>2 months</option>
+            <option value="3">3 months</option>
           </select>
         </div>
-        <div class="filter-group">
-          <label class="filter-label">Min entries (history)</label>
-          <select class="fl-select" id="dMinEntries" style="width:70px">
-            <option value="2">2+</option>
-            <option value="3" selected>3+</option>
-            <option value="5">5+</option>
-          </select>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <input type="text" class="fl-input" id="dSearch" placeholder="🔍  Search vendor or account…" style="width:230px" oninput="renderDeviation()" />
+          <button class="topbar-btn" onclick="openDeviationSyncPanel()" style="white-space:nowrap;gap:4px" title="Configure sync range">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Sync Settings
+          </button>
         </div>
-        <div style="margin-left:auto">
-          <input type="text" class="fl-input" id="dSearch" placeholder="🔍  Search vendor or account…" style="width:240px" oninput="renderDeviation()" />
+      </div>
+      <!-- Deviation Sync Panel -->
+      <div id="deviationSyncPanel" style="display:none;padding:10px 16px;background:#fffbe6;border-bottom:1px solid #ffe89a;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:#7a4f00">⬇ Sync from Odoo:</span>
+          <div class="filter-group">
+            <label class="filter-label">From</label>
+            <input type="date" class="fl-input" id="dDateFrom" style="width:132px" />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">To</label>
+            <input type="date" class="fl-input" id="dDateTo" style="width:132px" />
+          </div>
+          <div class="filter-group" style="gap:4px">
+            <span style="font-size:11px;color:#7a4f00;font-weight:600">Single FY:</span>
+            <button class="period-btn" onclick="setDSyncFY('2023-24',this)">FY 23-24</button>
+            <button class="period-btn" onclick="setDSyncFY('2024-25',this)">FY 24-25</button>
+            <button class="period-btn" onclick="setDSyncFY('2025-26',this)" style="background:#d4edda;border-color:#28a745;color:#155724">FY 25-26</button>
+            <button class="period-btn" onclick="setDSyncFY('2026-27',this)">FY 26-27</button>
+            <span style="font-size:11px;color:#7a4f00;font-weight:600;margin-left:6px">Multi FY:</span>
+            <button class="period-btn" onclick="setSyncMultiFY(2,'deviationSyncPanel',this)" title="Fetch 2 years at once">2 FYs</button>
+            <button class="period-btn" onclick="setSyncMultiFY(3,'deviationSyncPanel',this)" title="Fetch 3 years at once">3 FYs</button>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Scope</label>
+            <select class="fl-select" id="dScope" style="width:140px">
+              <option value="expense">Expense Accounts</option>
+              <option value="all_pl">All P&amp;L Accounts</option>
+            </select>
+          </div>
+          <button class="topbar-btn primary" onclick="runDeviation()" style="margin-left:4px">Fetch Now</button>
+          <button onclick="document.getElementById('deviationSyncPanel').style.display='none'" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#7a4f00;font-size:16px;padding:0 4px">✕</button>
         </div>
       </div>
 
@@ -693,7 +772,7 @@
           <div class="info-card" style="padding:10px 16px;flex:2;min-width:260px;background:#fff4ce;border-color:#ffe89a;">
             <div class="info-card-label" style="color:#7a4f00">What is a Deviation?</div>
             <div style="font-size:12px;color:#7a4f00;margin-top:4px">
-              A vendor's <strong>usual account</strong> is determined from historical bookings. Any entry using a <strong>different account</strong> is flagged — likely a wrong account head selection.
+              Each vendor's <strong>established accounts</strong> = heads used across ≥ 2 months historically. If a vendor like RESURGENT books to both Rent &amp; Maintenance every month, both are established — no flag. Only a head that <strong>never appeared before</strong> is flagged as a deviation.
             </div>
           </div>
         </div>
@@ -711,8 +790,8 @@
                 <th onclick="sortDev('entry_no')">Entry No.</th>
                 <th onclick="sortDev('bill_ref')">Bill Reference</th>
                 <th onclick="sortDev('narration')">Narration</th>
-                <th onclick="sortDev('usual_account_name')" style="background:#dff6dd">Usual Account</th>
-                <th onclick="sortDev('booked_account_name')" style="background:#fde7e9">Booked Account</th>
+                <th onclick="sortDev('usual_accounts')" style="background:#dff6dd;min-width:200px">Established Accounts (History)</th>
+                <th onclick="sortDev('deviated_account_name')" style="background:#fde7e9;min-width:180px">Deviated Account (This Entry)</th>
                 <th onclick="sortDev('amount')" style="text-align:right">Amount (₹)</th>
                 <th style="text-align:center;width:56px">Open</th>
               </tr>
@@ -799,11 +878,10 @@ let lastMeta     = {};
 window.addEventListener('DOMContentLoaded', () => {
   setDefaultDates();
   initSidebar();
-  onFYChange();
-  onDFYChange();
   restoreState();
   restorePatternState();
   restoreDeviationState();
+  initFYViewLabels();  // init all FY view labels (Missing, Pattern, Deviation)
   pingProxy();
 });
 
@@ -925,6 +1003,10 @@ async function runAudit() {
       dateFrom, dateTo, accountScope, entryType
     };
 
+    // Auto-populate View FY dropdown from actual synced dates
+    populateViewFY(allData.map(r => r.date), 'viewFY');
+    applyFYView();   // re-apply the filter with the newly selected FY
+
     updateDash(lastMeta);
     renderTable();
     saveState();
@@ -987,14 +1069,142 @@ function setDashAlert(msg, type) {
 }
 
 // ── Table ─────────────────────────────────────────────────────
+// ── FY view helpers (client-side, no Odoo call) ──────────────
+function fyViewDates(fy) {
+  if (!fy || fy === 'all') return { from: null, to: null };
+  const y = parseInt(fy.split('-')[0]);
+  return { from: `${y}-04-01`, to: `${y+1}-03-31` };
+}
+
+// Determine which Indian FY a date falls in: "YYYY-YY" format
+function dateToFY(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1; // 1-based
+  // Apr-Mar year: if month >= 4, FY starts this year; else starts last year
+  const fyStart = m >= 4 ? y : y - 1;
+  return `${fyStart}-${String(fyStart + 1).slice(-2)}`;
+}
+
+// Auto-populate a View FY dropdown from actual data dates
+// Keeps "All Data" option; adds only FYs that exist in the data; selects latest
+function populateViewFY(dates, selectorId) {
+  const sel = document.getElementById(selectorId);
+  if (!sel) return;
+  const fys = new Set(dates.map(dateToFY).filter(Boolean));
+  const sorted = [...fys].sort(); // ascending: "2023-24", "2024-25" ...
+
+  // Rebuild options
+  sel.innerHTML = '<option value="all">All FYs</option>';
+  sorted.forEach(fy => {
+    const opt = document.createElement('option');
+    opt.value = fy;
+    opt.textContent = `FY ${fy}`;
+    sel.appendChild(opt);
+  });
+  // Select the latest FY by default
+  if (sorted.length) sel.value = sorted[sorted.length - 1];
+}
+
+function applyFYView() {
+  const fy  = document.getElementById('viewFY').value;
+  const { from, to } = fyViewDates(fy);
+  const label = document.getElementById('viewFYRange');
+  const titleLabel = document.getElementById('missingFYLabel');
+  if (from) {
+    label.textContent = `${from}  →  ${to}`;
+    label.style.display = '';
+    if (titleLabel) titleLabel.textContent = `FY ${fy}`;
+  } else {
+    label.textContent = 'Showing all synced data';
+    label.style.display = '';
+    if (titleLabel) titleLabel.textContent = '';
+  }
+  applyFilter();
+}
+
+function openSyncPanel() {
+  const panel = document.getElementById('syncPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (panel.style.display === 'block') {
+    // Update sync range info
+    const df = document.getElementById('dateFrom').value;
+    const dt = document.getElementById('dateTo').value;
+    if (df && dt) document.getElementById('syncRangeInfo').textContent = `Last synced: ${df} → ${dt}`;
+  }
+}
+
+function closeSyncPanel() {
+  document.getElementById('syncPanel').style.display = 'none';
+}
+
+function setSyncFY(fy, btn) {
+  document.querySelectorAll('#syncPanel .period-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const y = parseInt(fy.split('-')[0]);
+  document.getElementById('dateFrom').value = `${y}-04-01`;
+  document.getElementById('dateTo').value   = `${y+1}-03-31`;
+}
+
+// Set a date range spanning N financial years back from current FY
+// panelId: which sync panel's date inputs to fill
+function setSyncMultiFY(n, panelId, btn) {
+  // Highlight the clicked button
+  const panel = document.getElementById(panelId);
+  if (panel) panel.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  // Current FY start
+  const now = new Date();
+  const m   = now.getMonth() + 1;
+  const currentFYStart = m >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+
+  // Go back (n-1) FYs from current
+  const fromFYStart = currentFYStart - (n - 1);
+  const toFYEnd     = currentFYStart + 1;
+
+  const fromDate = `${fromFYStart}-04-01`;
+  const toDate   = `${toFYEnd}-03-31`;
+
+  // Fill whichever date inputs belong to this panel
+  const fromInput = panelId === 'syncPanel' ? 'dateFrom'
+                  : panelId === 'patternSyncPanel' ? 'pDateFrom'
+                  : 'dDateFrom';
+  const toInput   = panelId === 'syncPanel' ? 'dateTo'
+                  : panelId === 'patternSyncPanel' ? 'pDateTo'
+                  : 'dDateTo';
+
+  document.getElementById(fromInput).value = fromDate;
+  document.getElementById(toInput).value   = toDate;
+
+  // Show label
+  const infoId = panelId === 'syncPanel' ? 'syncRangeInfo' : null;
+  if (infoId) document.getElementById(infoId).textContent =
+    `Fetching ${n} FYs: ${fromDate} → ${toDate}`;
+}
+
 function applyFilter() {
-  const q = (document.getElementById('searchBox').value || '').toLowerCase().trim();
-  filtered = q
-    ? allData.filter(r => ['entry_no','partner','bill_ref','narration','journal','expense_accounts','bs_accounts']
-        .some(k => (r[k]||'').toLowerCase().includes(q)))
+  const q  = (document.getElementById('searchBox').value || '').toLowerCase().trim();
+  const fy = document.getElementById('viewFY')?.value || 'all';
+  const { from: fyFrom, to: fyTo } = fyViewDates(fy);
+
+  // First apply FY date range filter on the full dataset
+  let base = fyFrom
+    ? allData.filter(r => r.date >= fyFrom && r.date <= fyTo)
     : [...allData];
+
+  // Then apply text search on top
+  filtered = q
+    ? base.filter(r => ['entry_no','partner','bill_ref','narration','journal','expense_accounts','bs_accounts']
+        .some(k => (r[k]||'').toLowerCase().includes(q)))
+    : base;
   page = 1;
   renderTable();
+
+  // Update title count
+  const titleEl = document.getElementById('missingTitle');
+  if (titleEl) titleEl.textContent = `Missing Attachments (${filtered.length} entries)`;
 }
 
 function sortBy(col) {
@@ -1200,7 +1410,8 @@ function saveState() {
       df: document.getElementById('dateFrom').value,
       dt: document.getElementById('dateTo').value,
       sc: document.getElementById('accountScope').value,
-      et: document.getElementById('entryType').value
+      et: document.getElementById('entryType').value,
+      vfy: document.getElementById('viewFY')?.value || '2025-26'
     }));
   } catch(e){}
 }
@@ -1214,12 +1425,17 @@ function restoreState() {
     lastMeta = s.meta || {};
     if (s.df) document.getElementById('dateFrom').value = s.df;
     if (s.dt) document.getElementById('dateTo').value   = s.dt;
-    if (s.sc) document.getElementById('accountScope').value = s.sc;
-    if (s.et) document.getElementById('entryType').value    = s.et;
+    if (s.sc)  document.getElementById('accountScope').value = s.sc;
+    if (s.et)  document.getElementById('entryType').value    = s.et;
+    if (s.vfy && document.getElementById('viewFY')) document.getElementById('viewFY').value = s.vfy;
     if (lastMeta.total) updateDash(lastMeta);
     const badge = document.getElementById('cnt-missing');
     badge.textContent = allData.length;
     badge.className   = `nav-badge ${allData.length>0?'':'zero'}`;
+    // Re-populate View FY from saved data
+    populateViewFY(allData.map(r => r.date), 'viewFY');
+    if (s.vfy) document.getElementById('viewFY').value = s.vfy;
+    applyFYView();
     renderTable();
   } catch(e){}
 }
@@ -1240,11 +1456,15 @@ function initPatternDates() {
 }
 
 async function runPattern() {
-  const dateFrom  = document.getElementById('pDateFrom').value;
-  const dateTo    = document.getElementById('pDateTo').value;
+  const dateFrom     = document.getElementById('pDateFrom').value;
+  const dateTo       = document.getElementById('pDateTo').value;
   const accountScope = document.getElementById('pScope').value;
-  const minMonths = parseInt(document.getElementById('pMinMonths').value) || 2;
-  if (!dateFrom || !dateTo) { toast('Select a date range first', 'error'); return; }
+  const minMonths    = parseInt(document.getElementById('pMinMonths').value) || 2;
+  if (!dateFrom || !dateTo) {
+    toast('Open Sync Settings and set a date range first', 'error');
+    openPatternSyncPanel();
+    return;
+  }
 
   setLoading(true);
   try {
@@ -1256,6 +1476,10 @@ async function runPattern() {
     if (!res.ok) throw new Error(res.error || 'Failed');
 
     patternData = res;
+    // Auto-populate View FY from synced months
+    const allPatternDates = (res.months||[]).map(m => m + '-01');
+    populateViewFY(allPatternDates, 'pViewFY');
+    applyPatternFYView();
     const badge = document.getElementById('cnt-pattern');
     badge.textContent = res.vendors_with_gaps || 0;
     badge.className   = `nav-badge ${(res.vendors_with_gaps||0) > 0 ? '' : 'zero'}`;
@@ -1345,14 +1569,14 @@ function renderPattern() {
 
     return `<tr>
       <td style="font-weight:600;font-size:13px">${x(v.partner_name)}</td>
-      <td style="text-align:center"><span class="pattern-stat">${v.active_months}/${months.length}</span></td>
+      <td style="text-align:center"><span class="pattern-stat">${v.active_months}/${visibleMonths.length}</span></td>
       <td style="text-align:center"><span class="${gapCount>0?'gap-badge':'gap-badge zero'}">${gapCount}</span></td>
       <td style="text-align:right;font-family:'Courier New',monospace">₹${avg}</td>
       ${cells}
     </tr>`;
   }).join('');
 
-  info.textContent = `Showing ${vendors.length} vendors · ${filter==='gaps'?'filtered to vendors with gaps':'all recurring vendors'} · ${months.length} months`;
+  info.textContent = `Showing ${vendors.length} vendors · ${filter==='gaps'?'filtered to vendors with gaps':'all recurring vendors'} · ${visibleMonths.length} of ${months.length} months`;
 }
 
 function exportPattern() {
@@ -1368,8 +1592,8 @@ function exportPattern() {
 
   const rows = vendors.map(v => {
     const gapCount = v.missing_months.filter(m => {
-      const idx = months.indexOf(m);
-      return months.slice(0,idx).some(mm=>v.monthly[mm]) && months.slice(idx+1).some(mm=>v.monthly[mm]);
+      const idx = visibleMonths.indexOf(m);
+      return visibleMonths.slice(0,idx).some(mm=>v.monthly[mm]) && visibleMonths.slice(idx+1).some(mm=>v.monthly[mm]);
     }).length;
     const monthCols = months.map(m => v.monthly[m] ? v.monthly[m].amount.toFixed(2) : '');
     return [v.partner_name, v.active_months, gapCount, v.total_amount.toFixed(2), v.avg_monthly.toFixed(0), ...monthCols];
@@ -1453,7 +1677,8 @@ function savePatternState() {
   try {
     localStorage.setItem('attPattern', JSON.stringify({
       data: patternData,
-      fy: document.getElementById('pFY').value,
+      pViewFY: document.getElementById('pViewFY')?.value || 'all',
+      fy: document.getElementById('pViewFY')?.value || '2025-26',
       scope: document.getElementById('pScope').value,
       minMonths: document.getElementById('pMinMonths').value
     }));
@@ -1465,7 +1690,7 @@ function restorePatternState() {
     const s = JSON.parse(localStorage.getItem('attPattern')||'null');
     if (!s || !s.data?.vendors?.length) return;
     patternData = s.data;
-    if (s.fy)  document.getElementById('pFY').value = s.fy;
+    if (s.fy && document.getElementById('pViewFY')) document.getElementById('pViewFY').value = s.fy;
     if (s.scope) document.getElementById('pScope').value = s.scope;
     if (s.minMonths) document.getElementById('pMinMonths').value = s.minMonths;
     onFYChange();
@@ -1479,6 +1704,11 @@ function restorePatternState() {
     document.getElementById('patternCards').style.display = 'block';
     document.getElementById('patternTitle').textContent =
       `Vendor Pattern — ${patternData.vendors_with_gaps} gaps found across ${patternData.total_vendors} vendors`;
+    // Repopulate view FY from saved months
+    const allPatternDates = (patternData.months||[]).map(m => m + '-01');
+    populateViewFY(allPatternDates, 'pViewFY');
+    if (s.pViewFY) document.getElementById('pViewFY').value = s.pViewFY;
+    applyPatternFYView();
     renderPattern();
   } catch(e){}
 }
@@ -1507,7 +1737,24 @@ function renderPattern() {
   }
   empty.style.display = 'none';
 
-  let vendors = [...allVendors];
+  // ── Apply FY view filter on months (client-side, no re-fetch) ──
+  const pViewFY = document.getElementById('pViewFY')?.value || 'all';
+  const { from: pvFrom, to: pvTo } = fyViewDates(pViewFY);
+  const visibleMonths = pvFrom
+    ? months.filter(m => m >= pvFrom.substring(0,7) && m <= pvTo.substring(0,7))
+    : months;
+
+  // Re-derive gaps based on visible months only
+  let vendors = [...allVendors].map(v => {
+    if (!pvFrom) return v;  // no FY filter, use as-is
+    const activeMo  = visibleMonths.filter(m => v.monthly[m]);
+    const missingMo = visibleMonths.filter(m => !v.monthly[m]);
+    return { ...v,
+      active_months: activeMo.length,
+      missing_months: missingMo,
+      has_gaps: missingMo.length > 0 && activeMo.length > 0
+    };
+  });
   if (filter === 'gaps') vendors = vendors.filter(v => v.has_gaps);
   if (q) vendors = vendors.filter(v => v.partner_name.toLowerCase().includes(q));
 
@@ -1525,7 +1772,7 @@ function renderPattern() {
   });
 
   const sc = n => pSortCol===n ? (pSortDir===1?' ▲':' ▼') : '';
-  const monthLabels = months.map(m => {
+  const monthLabels = visibleMonths.map(m => {
     const [y, mo] = m.split('-');
     const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1];
     return `<th class="month-th">${mn}<br><span style="font-size:9px;font-weight:400">${y}</span></th>`;
@@ -1540,11 +1787,11 @@ function renderPattern() {
   </tr>`;
 
   body.innerHTML = vendors.map(v => {
-    const cells = months.map(m => {
+    const cells = visibleMonths.map(m => {
       const d = v.monthly[m];
       if (!d) {
-        const hasAfter  = months.slice(months.indexOf(m)+1).some(mm => v.monthly[mm]);
-        const hasBefore = months.slice(0, months.indexOf(m)).some(mm => v.monthly[mm]);
+        const hasAfter  = visibleMonths.slice(visibleMonths.indexOf(m)+1).some(mm => v.monthly[mm]);
+        const hasBefore = visibleMonths.slice(0, visibleMonths.indexOf(m)).some(mm => v.monthly[mm]);
         if (hasBefore && hasAfter)
           return `<td><div class="cell-gap" title="Missing entry — possible gap">✗</div></td>`;
         return `<td><div class="cell-none">—</div></td>`;
@@ -1556,8 +1803,8 @@ function renderPattern() {
     }).join('');
 
     const gapCount = v.missing_months.filter(m => {
-      const idx = months.indexOf(m);
-      return months.slice(0,idx).some(mm=>v.monthly[mm]) && months.slice(idx+1).some(mm=>v.monthly[mm]);
+      const idx = visibleMonths.indexOf(m);
+      return visibleMonths.slice(0,idx).some(mm=>v.monthly[mm]) && visibleMonths.slice(idx+1).some(mm=>v.monthly[mm]);
     }).length;
 
     const avg = v.avg_monthly >= 100000 ? (v.avg_monthly/100000).toFixed(1)+'L'
@@ -1566,14 +1813,14 @@ function renderPattern() {
 
     return `<tr>
       <td style="font-weight:600;font-size:13px">${x(v.partner_name)}</td>
-      <td style="text-align:center"><span class="pattern-stat">${v.active_months}/${months.length}</span></td>
+      <td style="text-align:center"><span class="pattern-stat">${v.active_months}/${visibleMonths.length}</span></td>
       <td style="text-align:center"><span class="${gapCount>0?'gap-badge':'gap-badge zero'}">${gapCount}</span></td>
       <td style="text-align:right;font-family:'Courier New',monospace">₹${avg}</td>
       ${cells}
     </tr>`;
   }).join('');
 
-  info.textContent = `Showing ${vendors.length} vendors · ${filter==='gaps'?'filtered to vendors with gaps':'all recurring vendors'} · ${months.length} months`;
+  info.textContent = `Showing ${vendors.length} vendors · ${filter==='gaps'?'filtered to vendors with gaps':'all recurring vendors'} · ${visibleMonths.length} of ${months.length} months`;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1586,24 +1833,22 @@ let devPage     = 1;
 const DEV_PAGE_SZ = 100;
 
 async function runDeviation() {
-  const fy = document.getElementById('dFY').value;
-  let dateFrom, dateTo;
-  if (fy === 'custom') {
-    dateFrom = document.getElementById('dDateFrom').value;
-    dateTo   = document.getElementById('dDateTo').value;
-  } else {
-    const d = fyDates(fy);
-    dateFrom = d.from; dateTo = d.to;
-  }
-  const scope      = document.getElementById('dScope').value;
-  const minEntries = parseInt(document.getElementById('dMinEntries').value) || 3;
+  // Sync range comes from the sync panel's date fields
+  const dateFrom = document.getElementById('dDateFrom').value;
+  const dateTo   = document.getElementById('dDateTo').value;
+  const scope             = document.getElementById('dScope').value;
+  const minMonthsToEstablish = parseInt(document.getElementById('dMinMonths').value) || 2;
 
-  if (!dateFrom || !dateTo) { toast('Select a period first','error'); return; }
+  if (!dateFrom || !dateTo) {
+    toast('Open Sync Settings and set a date range first','error');
+    openDeviationSyncPanel();
+    return;
+  }
   setLoading(true);
   try {
     const r = await fetch(`${PROXY}/api/sync/account-deviation`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ dateFrom, dateTo, accountScope:scope, minEntries })
+      body: JSON.stringify({ dateFrom, dateTo, accountScope:scope, minMonthsToEstablish })
     });
     const res = await r.json();
     if (!res.ok) throw new Error(res.error||'Failed');
@@ -1611,6 +1856,9 @@ async function runDeviation() {
     devData     = res.deviations || [];
     devFiltered = [...devData];
     devPage     = 1;
+    // Auto-populate View FY from actual deviation dates
+    populateViewFY(devData.map(r => r.date), 'dViewFY');
+    applyDeviationFYView();
 
     document.getElementById('dc-vendors').textContent  = res.vendors_checked || 0;
     document.getElementById('dc-total').textContent    = res.total_deviations || 0;
@@ -1624,7 +1872,7 @@ async function runDeviation() {
     badge.className   = `nav-badge ${(res.total_deviations||0)>0?'':'zero'}`;
 
     // Save to localStorage
-    try { localStorage.setItem('attDeviation', JSON.stringify({ data:devData, fy, scope, minEntries })); } catch(e){}
+    try { localStorage.setItem('attDeviation', JSON.stringify({ data:devData, fy:document.getElementById('dViewFY')?.value||'2025-26', scope:document.getElementById('dScope')?.value||'expense', minMonths:minMonthsToEstablish })); } catch(e){}
 
     renderDeviation();
     toast(res.total_deviations>0
@@ -1643,9 +1891,9 @@ function restoreDeviationState() {
     if (!s||!s.data?.length) return;
     devData     = s.data;
     devFiltered = [...devData];
-    if (s.fy) document.getElementById('dFY').value = s.fy;
+    if (s.fy && document.getElementById('dViewFY')) document.getElementById('dViewFY').value = s.fy;
     if (s.scope) document.getElementById('dScope').value = s.scope;
-    if (s.minEntries) document.getElementById('dMinEntries').value = s.minEntries;
+    if (s.minMonths) document.getElementById('dMinMonths').value = s.minMonths;
     onDFYChange();
     const cnt = document.getElementById('cnt-deviation');
     cnt.textContent = devData.length;
@@ -1656,6 +1904,10 @@ function restoreDeviationState() {
     document.getElementById('deviationCards').style.display = 'block';
     document.getElementById('deviationTitle').textContent =
       `Account Deviation — ${devData.length} deviations`;
+    // Repopulate view FY
+    populateViewFY(devData.map(r => r.date), 'dViewFY');
+    if (s.fy) document.getElementById('dViewFY').value = s.fy;
+    applyDeviationFYView();
     renderDeviation();
   } catch(e){}
 }
@@ -1671,10 +1923,17 @@ function sortDev(col) {
 
 function renderDeviation() {
   const q = (document.getElementById('dSearch')?.value||'').toLowerCase();
-  devFiltered = q
-    ? devData.filter(r => ['vendor','usual_account_name','booked_account_name','entry_no','bill_ref','narration']
-        .some(k => (r[k]||'').toLowerCase().includes(q)))
+  // Apply FY view filter (client-side)
+  const dViewFY = document.getElementById('dViewFY')?.value || 'all';
+  const { from: dvFrom, to: dvTo } = fyViewDates(dViewFY);
+  let fyBase = dvFrom
+    ? devData.filter(r => r.date >= dvFrom && r.date <= dvTo)
     : [...devData];
+
+  devFiltered = q
+    ? fyBase.filter(r => ['vendor','usual_accounts','deviated_account_name','deviated_account_code','entry_no','bill_ref','narration']
+        .some(k => (r[k]||'').toLowerCase().includes(q)))
+    : fyBase;
 
   // apply current sort
   devFiltered.sort((a,b) => {
@@ -1712,14 +1971,13 @@ function renderDeviation() {
       <td style="color:var(--primary);font-weight:600">${x(r.entry_no)}</td>
       <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)" title="${x(r.bill_ref)}">${x(r.bill_ref)||'—'}</td>
       <td style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)" title="${x(r.narration)}">${x(r.narration)||'—'}</td>
-      <td style="background:#f0faf0;font-size:12px;white-space:nowrap">
-        <span style="color:var(--success);font-weight:600">${x(r.usual_account_code)}</span>
-        <span style="color:var(--text2)"> ${x(r.usual_account_name)}</span>
-        <span style="font-size:10px;color:var(--text3);margin-left:4px">(${r.usual_pct}%)</span>
+      <td style="background:#f0faf0;font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(r.usual_accounts)}">
+        <span style="color:var(--success)">${x(r.usual_accounts||'—')}</span>
       </td>
       <td style="background:#fff5f5;font-size:12px;white-space:nowrap">
-        <span style="color:var(--danger);font-weight:600">${x(r.booked_account_code)}</span>
-        <span style="color:var(--text2)"> ${x(r.booked_account_name)}</span>
+        <span style="color:var(--danger);font-weight:700">${x(r.deviated_account_code)}</span>
+        <span style="color:var(--text2)"> ${x(r.deviated_account_name)}</span>
+        ${r.times_used > 0 ? `<span style="font-size:10px;color:var(--text3);margin-left:4px">(seen ${r.times_used}mo)</span>` : ''}
       </td>
       <td class="amt">₹${amt}</td>
       <td style="text-align:center">
@@ -1751,10 +2009,10 @@ function devGoPage(p) {
 
 function exportDeviation() {
   if (!devFiltered.length) { toast('No data to export','error'); return; }
-  const cols = ['S.No','Vendor','Date','Entry No.','Bill Reference','Narration','Usual Account Code','Usual Account Name','Usual %','Booked Account Code','Booked Account Name','Amount (INR)','Odoo ID'];
+  const cols = ['S.No','Vendor','Date','Entry No.','Bill Reference','Narration','Established Accounts (History)','Deviated Account Code','Deviated Account Name','Times Used (months)','Amount (INR)','Odoo ID'];
   const rows = devFiltered.map((r,i) => [i+1,r.vendor,r.date,r.entry_no,r.bill_ref,r.narration,
-    r.usual_account_code,r.usual_account_name,r.usual_pct+'%',
-    r.booked_account_code,r.booked_account_name,r.amount,r.odoo_id]);
+    r.usual_accounts, r.deviated_account_code, r.deviated_account_name,
+    r.times_used, r.amount, r.odoo_id]);
   const csv = [cols,...rows].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = Object.assign(document.createElement('a'),{
     href: URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'})),
@@ -1762,6 +2020,76 @@ function exportDeviation() {
   });
   a.click();
   toast(`Exported ${devFiltered.length} records`,'success');
+}
+
+// ══════════════════════════════════════════════════════════════
+// FY VIEW FILTERS — client-side, no Odoo call
+// ══════════════════════════════════════════════════════════════
+
+// ── Pattern: FY view filters month columns ─────────────────────
+function applyPatternFYView() {
+  const fy = document.getElementById('pViewFY').value;
+  const { from, to } = fyViewDates(fy);
+  const label = document.getElementById('pViewFYRange');
+  label.textContent = from ? `${from}  →  ${to}` : 'Showing all synced data';
+  renderPattern();  // renderPattern reads pViewFY and subsets months
+}
+
+// ── Deviation: FY view filters rows by date ────────────────────
+function applyDeviationFYView() {
+  const fy = document.getElementById('dViewFY').value;
+  const { from, to } = fyViewDates(fy);
+  const label = document.getElementById('dViewFYRange');
+  label.textContent = from ? `${from}  →  ${to}` : 'Showing all synced data';
+  devPage = 1;
+  renderDeviation();  // renderDeviation reads dViewFY and filters rows
+}
+
+// ── Sync panel helpers ──────────────────────────────────────────
+function openPatternSyncPanel() {
+  const p = document.getElementById('patternSyncPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function openDeviationSyncPanel() {
+  const p = document.getElementById('deviationSyncPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function setPSyncFY(fy, btn) {
+  document.querySelectorAll('#patternSyncPanel .period-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const y = parseInt(fy.split('-')[0]);
+  document.getElementById('pDateFrom').value = `${y}-04-01`;
+  document.getElementById('pDateTo').value   = `${y+1}-03-31`;
+}
+
+function setDSyncFY(fy, btn) {
+  document.querySelectorAll('#deviationSyncPanel .period-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const y = parseInt(fy.split('-')[0]);
+  document.getElementById('dDateFrom').value = `${y}-04-01`;
+  document.getElementById('dDateTo').value   = `${y+1}-03-31`;
+}
+
+// ── Init view FY labels on page load ───────────────────────────
+function initFYViewLabels() {
+  // Missing Attachments
+  applyFYView();
+  // Pattern
+  const pfy = document.getElementById('pViewFY');
+  if (pfy) {
+    const { from, to } = fyViewDates(pfy.value);
+    const lbl = document.getElementById('pViewFYRange');
+    if (lbl) lbl.textContent = from ? `${from}  →  ${to}` : 'Showing all synced data';
+  }
+  // Deviation
+  const dfy = document.getElementById('dViewFY');
+  if (dfy) {
+    const { from, to } = fyViewDates(dfy.value);
+    const lbl = document.getElementById('dViewFYRange');
+    if (lbl) lbl.textContent = from ? `${from}  →  ${to}` : 'Showing all synced data';
+  }
 }
 // Ctrl+R → run audit
 document.addEventListener('keydown', e => {

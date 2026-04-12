@@ -493,16 +493,33 @@ app.post('/api/sync/vendor-pattern', async (req, res) => {
 });
 
 // ── POST /api/sync/account-deviation ─────────────────────────
-// Per-vendor historical account head analysis.
-// Flags entries where a vendor booked to a different account than usual.
+// Correct logic:
+//   1. For each vendor, build their ESTABLISHED account set =
+//      accounts that appear in >= minMonths distinct calendar months.
+//   2. A vendor like RESURGENT who books Rent (12 months) + Maintenance (12 months)
+//      will have BOTH in their established set → no deviation for either.
+//   3. Only flag an entry whose account does NOT appear in the established set
+//      → it is a genuinely new/unusual account for that vendor.
+//
+// Body: { dateFrom, dateTo, accountScope, minMonthsToEstablish }
+//   minMonthsToEstablish (default 2): account must appear in ≥ N distinct months
+//   to be considered "established" for a vendor.
 app.post('/api/sync/account-deviation', async (req, res) => {
   const s = loadSettings();
-  const { dateFrom, dateTo, accountScope = 'expense', minEntries = 3 } = req.body;
-  if (!dateFrom || !dateTo) return res.status(400).json({ ok: false, error: 'dateFrom and dateTo required' });
+  const {
+    dateFrom, dateTo,
+    accountScope          = 'expense',
+    minMonthsToEstablish  = 2    // account must appear in ≥ 2 distinct months to be "established"
+  } = req.body;
+  if (!dateFrom || !dateTo)
+    return res.status(400).json({ ok: false, error: 'dateFrom and dateTo required' });
 
-  console.log('\n🔍 Account Deviation | ' + dateFrom + ' → ' + dateTo);
+  console.log('\n🔍 Account Deviation | ' + dateFrom + ' → ' + dateTo +
+              ' | minMonths=' + minMonthsToEstablish);
   try {
     const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+
+    // ── Excluded account codes ────────────────────────────────────
     const EXCL = new Set(['410003','410004','410010','410013','410016','410017','410021','410022',
       '410026','410028','410031','410033','410038','410042','410044','410046','410053','410058',
       '410060','410063','410071','410072','410075','410077','410088','410095','410101','410102',
@@ -510,24 +527,36 @@ app.post('/api/sync/account-deviation', async (req, res) => {
 
     const expenseTypes = ['expense','expense_direct_cost','expense_depreciation'];
     const incomeTypes  = ['income','income_other'];
-    let   accountDomain = [['deprecated','=',false]];
-    if (accountScope === 'expense') accountDomain.push(['account_type','in',expenseTypes]);
-    else if (accountScope === 'all_pl') accountDomain.push(['account_type','in',[...expenseTypes,...incomeTypes]]);
+    let accountDomain  = [['deprecated','=',false]];
+    if (accountScope === 'expense')
+      accountDomain.push(['account_type','in',expenseTypes]);
+    else if (accountScope === 'all_pl')
+      accountDomain.push(['account_type','in',[...expenseTypes,...incomeTypes]]);
 
     const allAccounts = await odooCall(session,'account.account','search_read',
       [accountDomain],{ fields:['id','code','name'], limit:5000 });
     const accountMap = {}; const accountIds = [];
-    allAccounts.forEach(a => { if (!EXCL.has((a.code||'').trim())) { accountMap[a.id]=a; accountIds.push(a.id); } });
+    allAccounts.forEach(a => {
+      if (!EXCL.has((a.code||'').trim())) { accountMap[a.id] = a; accountIds.push(a.id); }
+    });
     if (!accountIds.length) return res.json({ ok:true, deviations:[], vendors_checked:0 });
 
+    // ── Fetch all posted vendor bills in range ────────────────────
     const bills = await odooCall(session,'account.move','search_read',
       [[['move_type','in',['in_invoice','in_refund']],['state','=','posted'],
-        ['invoice_date','>=',dateFrom],['invoice_date','<=',dateTo],['partner_id','!=',false]]],
+        ['invoice_date','>=',dateFrom],['invoice_date','<=',dateTo],
+        ['partner_id','!=',false]]],
       { fields:['id','name','ref','narration','invoice_date','partner_id','amount_total'],
-        limit:50000, order:'invoice_date asc', context:{ lang:'en_IN', allowed_company_ids:[] } });
+        limit:50000, order:'invoice_date asc',
+        context:{ lang:'en_IN', allowed_company_ids:[] } });
     if (!bills.length) return res.json({ ok:true, deviations:[], vendors_checked:0 });
 
+    const billMap = {};
+    bills.forEach(b => { billMap[b.id] = b; });
     const billIds = bills.map(b => b.id);
+
+    // ── Fetch expense account lines per bill ──────────────────────
+    // linesByBill[bill_id] = [ { account_id, account_code, account_name, amount } ]
     const linesByBill = {};
     for (let i = 0; i < billIds.length; i += 2000) {
       const lines = await odooCall(session,'account.move.line','search_read',
@@ -536,53 +565,121 @@ app.post('/api/sync/account-deviation', async (req, res) => {
       lines.forEach(l => {
         const bid = l.move_id?.[0]; const aid = l.account_id?.[0]; if (!bid||!aid) return;
         if (!linesByBill[bid]) linesByBill[bid] = [];
-        linesByBill[bid].push({ account_id:aid,
-          account_code: accountMap[aid]?.code||'', account_name: accountMap[aid]?.name||l.account_id?.[1]||'',
-          amount: Math.abs((l.debit||0)-(l.credit||0)) });
+        linesByBill[bid].push({
+          account_id:   aid,
+          account_code: accountMap[aid]?.code || '',
+          account_name: accountMap[aid]?.name || (l.account_id?.[1]||''),
+          amount:       Math.abs((l.debit||0)-(l.credit||0))
+        });
       });
     }
 
-    // Build dominant account per vendor
-    const vendorAccounts = {}; const vendorNames = {};
+    // ── Step 1: Build vendor → account → Set<months> map ─────────
+    // For each vendor, track WHICH distinct calendar months each account appears in.
+    // vendorAccountMonths[partnerId][accountId] = Set of "YYYY-MM" strings
+    const vendorAccountMonths = {};
+    const vendorNames = {};
+
     bills.forEach(b => {
-      const pid = b.partner_id?.[0]; if (!pid) return;
-      vendorNames[pid] = b.partner_id?.[1]||'Unknown';
+      const pid   = b.partner_id?.[0]; if (!pid) return;
+      const month = (b.invoice_date||'').substring(0,7); if (!month) return;
+      vendorNames[pid] = b.partner_id?.[1] || 'Unknown';
       if (!linesByBill[b.id]?.length) return;
-      const primary = linesByBill[b.id].reduce((top,l) => l.amount>(top?.amount||0)?l:top, null);
-      if (!primary) return;
-      if (!vendorAccounts[pid]) vendorAccounts[pid] = {};
-      vendorAccounts[pid][primary.account_id] = (vendorAccounts[pid][primary.account_id]||0)+1;
+
+      // Consider ALL expense accounts used in this bill (not just the "primary")
+      // because a single bill may legitimately split across two heads
+      const accountsInBill = new Set(linesByBill[b.id].map(l => l.account_id));
+      accountsInBill.forEach(aid => {
+        if (!vendorAccountMonths[pid]) vendorAccountMonths[pid] = {};
+        if (!vendorAccountMonths[pid][aid]) vendorAccountMonths[pid][aid] = new Set();
+        vendorAccountMonths[pid][aid].add(month);
+      });
     });
 
-    const vendorDominant = {};
-    Object.entries(vendorAccounts).forEach(([pid,accs]) => {
-      const total = Object.values(accs).reduce((s,c)=>s+c,0);
-      if (total < minEntries) return;
-      const domId = Object.keys(accs).reduce((a,b)=>accs[a]>accs[b]?a:b);
-      vendorDominant[pid] = { account_id:Number(domId), account_code:accountMap[domId]?.code||'',
-        account_name:accountMap[domId]?.name||'', count:accs[domId], total, pct:Math.round(accs[domId]/total*100) };
+    // ── Step 2: Determine "established" accounts per vendor ───────
+    // An account is established if it appears in >= minMonthsToEstablish distinct months.
+    // RESURGENT: Rent = 12 months → established. Maintenance = 10 months → established.
+    // vendorEstablished[partnerId] = Set of established accountIds
+    const vendorEstablished = {};
+    Object.entries(vendorAccountMonths).forEach(([pid, accMonths]) => {
+      const established = new Set();
+      Object.entries(accMonths).forEach(([aid, months]) => {
+        if (months.size >= minMonthsToEstablish) established.add(Number(aid));
+      });
+      if (established.size > 0) vendorEstablished[pid] = established;
     });
 
+    console.log('  ✅ ' + Object.keys(vendorEstablished).length + ' vendors with established accounts');
+
+    // ── Step 3: Flag entries using NON-established accounts ───────
+    // For each bill, check every expense account line.
+    // If ANY account in the bill is NOT in the vendor's established set → deviation.
+    // Also collect the established accounts as "context" for the UI.
     const deviations = [];
+
     bills.forEach(b => {
       const pid = b.partner_id?.[0]; if (!pid) return;
-      const dom = vendorDominant[pid]; if (!dom) return;
+      const est = vendorEstablished[pid]; if (!est) return; // vendor has no established pattern yet
       if (!linesByBill[b.id]?.length) return;
-      const primary = linesByBill[b.id].reduce((top,l)=>l.amount>(top?.amount||0)?l:top,null);
-      if (!primary || primary.account_id === dom.account_id) return;
-      const narr = (b.narration||'').replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim().substring(0,100);
-      deviations.push({ odoo_id:b.id, entry_no:b.name||'', date:b.invoice_date||'',
-        bill_ref:(b.ref||'').trim(), narration:narr, partner_id:pid, vendor:vendorNames[pid]||'',
-        usual_account_code:dom.account_code, usual_account_name:dom.account_name, usual_pct:dom.pct,
-        booked_account_code:primary.account_code, booked_account_name:primary.account_name,
-        amount:Math.round(Math.abs(b.amount_total||0)*100)/100 });
+
+      // Find all expense accounts used in this bill
+      const linesInBill = linesByBill[b.id];
+
+      // Deduplicate accounts within this bill (take max amount per account)
+      const billAccMap = {};
+      linesInBill.forEach(l => {
+        if (!billAccMap[l.account_id] || l.amount > billAccMap[l.account_id].amount)
+          billAccMap[l.account_id] = l;
+      });
+      const billAccounts = Object.values(billAccMap);
+
+      // Find accounts in this bill that are NOT established for this vendor
+      const deviatingLines = billAccounts.filter(l => !est.has(l.account_id));
+      if (!deviatingLines.length) return; // all accounts are established → no deviation
+
+      // Build "usual accounts" string for context
+      const usualAccounts = [...est]
+        .map(aid => accountMap[aid] ? `${accountMap[aid].code} - ${accountMap[aid].name}` : '')
+        .filter(Boolean)
+        .sort()
+        .join(' | ');
+
+      const narr = (b.narration||'')
+        .replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim().substring(0,120);
+
+      // One deviation row per deviating account line in the bill
+      deviatingLines.forEach(dl => {
+        const monthsUsed = vendorAccountMonths[pid]?.[dl.account_id]?.size || 0;
+        deviations.push({
+          odoo_id:             b.id,
+          entry_no:            b.name || '',
+          date:                b.invoice_date || '',
+          bill_ref:            (b.ref||'').trim(),
+          narration:           narr,
+          partner_id:          pid,
+          vendor:              vendorNames[pid] || '',
+          usual_accounts:      usualAccounts,   // all established accounts for this vendor
+          deviated_account_code: dl.account_code,
+          deviated_account_name: dl.account_name,
+          times_used:          monthsUsed,      // how many months this account has appeared (< threshold)
+          amount:              Math.round(Math.abs(b.amount_total||0) * 100) / 100
+        });
+      });
     });
 
-    deviations.sort((a,b)=>a.vendor.localeCompare(b.vendor)||a.date.localeCompare(b.date));
-    console.log('  ✅ '+deviations.length+' deviations | '+new Set(deviations.map(d=>d.partner_id)).size+' vendors');
-    res.json({ ok:true, deviations, total_deviations:deviations.length,
-      vendors_checked:Object.keys(vendorDominant).length,
-      vendors_with_deviation:new Set(deviations.map(d=>d.partner_id)).size });
+    deviations.sort((a,b) => a.vendor.localeCompare(b.vendor) || a.date.localeCompare(b.date));
+
+    const vendorsAffected = new Set(deviations.map(d => d.partner_id)).size;
+    console.log('  ✅ ' + deviations.length + ' deviations across ' + vendorsAffected + ' vendors');
+
+    res.json({
+      ok: true,
+      deviations,
+      total_deviations:        deviations.length,
+      vendors_checked:         Object.keys(vendorEstablished).length,
+      vendors_with_deviation:  vendorsAffected
+    });
+
   } catch(e) {
     console.error('❌ Account deviation error:', e.message);
     res.status(400).json({ ok:false, error:e.message });
