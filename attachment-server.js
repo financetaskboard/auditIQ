@@ -215,6 +215,8 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
       '410108', // Salary - PF Admin Charges-BT
       '410110', // Leave Encashment Expenses-BT
       '410111', // Gratuity-BT
+      // ── Balance Sheet / Payable accounts to exclude ──
+      '130003', // Staff Expenses Payable
     ]);
 
     let accountDomain = [['deprecated', '=', false]];
@@ -268,17 +270,25 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
     }
 
     // ── Step 3: Aggregate per move ───────────────────────────────
+    // allLineAccountInfo captures every account seen in move lines
+    // (including BS/liability accounts not in our accountMap)
+    const allLineAccountInfo = {}; // id → { id, name }
     const moveAgg = {};
     moveLines.forEach(l => {
       const mid = l.move_id?.[0];
+      const aid = l.account_id?.[0];
       if (!mid) return;
       if (!moveAgg[mid]) {
         moveAgg[mid] = { accounts: new Set(), total_debit: 0, total_credit: 0, line_narrations: new Set() };
       }
-      moveAgg[mid].accounts.add(l.account_id?.[0]);
+      moveAgg[mid].accounts.add(aid);
       moveAgg[mid].total_debit  += l.debit  || 0;
       moveAgg[mid].total_credit += l.credit || 0;
       if (l.name && l.name.trim() && l.name !== '/') moveAgg[mid].line_narrations.add(l.name.trim());
+      // Capture account name from move line (Odoo returns [id, display_name])
+      if (aid && !allLineAccountInfo[aid]) {
+        allLineAccountInfo[aid] = { id: aid, name: l.account_id?.[1] || String(aid) };
+      }
     });
 
     const moveIds = Object.keys(moveAgg).map(Number);
@@ -318,18 +328,30 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
 
     allMoves.forEach(m => {
       const extra = moveAgg[m.id] || {};
-      const accountDetails = [...(extra.accounts || [])]
-        .map(aid => accountMap[aid]).filter(Boolean)
+      const allAccountIds = [...(extra.accounts || [])];
+
+      // Expense/P&L accounts — those in our filtered accountMap
+      const expenseAccounts = allAccountIds
+        .filter(aid => accountMap[aid])
+        .map(aid => accountMap[aid])
         .sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+
+      // Balance Sheet accounts — all others (Creditors, GST payable, etc.)
+      const bsAccounts = allAccountIds
+        .filter(aid => !accountMap[aid] && allLineAccountInfo[aid])
+        .map(aid => allLineAccountInfo[aid])
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
       // Amount = max of total debit / credit (the JE total)
       const amount = Math.round(
         Math.max(extra.total_debit || 0, extra.total_credit || 0) * 100
       ) / 100;
 
-      const narration = m.narration
-        || [...(extra.line_narrations || [])].slice(0, 2).join('; ')
-        || '';
+      // bill_ref  = Bill Reference field (vendor's own invoice/ref number, m.ref in Odoo)
+      // narration = Narration field only (internal description, m.narration in Odoo)
+      // These are kept strictly separate — never merged or used as fallback for each other
+      const billRef   = (m.ref      || '').trim();
+      const narration = (m.narration || '').trim().substring(0, 150);
 
       // Entry type label
       const typeLabel = {
@@ -341,18 +363,20 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
       }[m.move_type] || m.move_type || 'Journal Entry';
 
       const row = {
-        odoo_id:      m.id,
-        entry_no:     m.name    || '',
-        date:         m.date    || '',
-        ref:          m.ref     || '',
-        narration:    narration.substring(0, 120),
-        partner:      m.partner_id?.[1] || '',
-        journal:      m.journal_id?.[1] || '',
-        move_type:    m.move_type || 'entry',
-        type_label:   typeLabel,
+        odoo_id:          m.id,
+        entry_no:         m.name    || '',
+        date:             m.date    || '',
+        bill_ref:         billRef,
+        narration:        narration,
+        partner:          m.partner_id?.[1] || '',
+        journal:          m.journal_id?.[1] || '',
+        move_type:        m.move_type || 'entry',
+        type_label:       typeLabel,
         amount,
-        accounts_csv: accountDetails.map(a => `${a.code} - ${a.name}`).join(' | '),
-        has_attachment: attachedIds.has(m.id)
+        expense_accounts: expenseAccounts.map(a => `${a.code} - ${a.name}`).join(' | '),
+        bs_accounts:      bsAccounts.map(a => a.name).join(' | '),
+        accounts_csv:     expenseAccounts.map(a => `${a.code} - ${a.name}`).join(' | '),
+        has_attachment:   attachedIds.has(m.id)
       };
 
       if (attachedIds.has(m.id)) withAtt.push(row);
@@ -376,6 +400,95 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
   } catch (e) {
     console.error('❌ Attachment audit error:', e.message);
     res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+
+// ── POST /api/sync/vendor-pattern ────────────────────────────
+// Month-wise recurring expense pattern per vendor.
+// Helps identify missing entries for regular vendors before month close.
+app.post('/api/sync/vendor-pattern', async (req, res) => {
+  const s = loadSettings();
+  const { dateFrom, dateTo, accountScope = 'expense', minMonths = 2 } = req.body;
+  if (!dateFrom || !dateTo) return res.status(400).json({ ok: false, error: 'dateFrom and dateTo are required' });
+
+  console.log('\n📊 Vendor Pattern | ' + dateFrom + ' → ' + dateTo);
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+
+    const EXCL = new Set(['410003','410004','410010','410013','410016','410017','410021','410022',
+      '410026','410028','410031','410033','410038','410042','410044','410046','410053','410058',
+      '410060','410063','410071','410072','410075','410077','410088','410095','410101','410102',
+      '410103','410104','410106','410107','410108','410110','410111','130003']);
+
+    const expenseTypes = ['expense','expense_direct_cost','expense_depreciation'];
+    const incomeTypes  = ['income','income_other'];
+    let accountDomain  = [['deprecated','=',false]];
+    if (accountScope === 'expense') accountDomain.push(['account_type','in',expenseTypes]);
+    else if (accountScope === 'all_pl') accountDomain.push(['account_type','in',[...expenseTypes,...incomeTypes]]);
+
+    const allAccounts = await odooCall(session,'account.account','search_read',
+      [accountDomain],{ fields:['id','code','name'], limit:5000 });
+    const accountIds = allAccounts.filter(a => !EXCL.has((a.code||'').trim())).map(a => a.id);
+    if (!accountIds.length) return res.json({ ok:true, months:[], vendors:[] });
+
+    // Fetch posted vendor bills/entries with a partner
+    const bills = await odooCall(session,'account.move','search_read',
+      [[['move_type','in',['in_invoice','in_refund']],['state','=','posted'],
+        ['invoice_date','>=',dateFrom],['invoice_date','<=',dateTo],['partner_id','!=',false]]],
+      { fields:['id','name','invoice_date','partner_id','amount_total','move_type'],
+        limit:50000, order:'invoice_date asc', context:{lang:'en_IN',allowed_company_ids:[]} }
+    );
+
+    // Filter to bills that actually touch expense accounts
+    const billIds = bills.map(b => b.id);
+    const relevantIds = new Set();
+    for (let i = 0; i < billIds.length; i += 2000) {
+      const lines = await odooCall(session,'account.move.line','search_read',
+        [[['move_id','in',billIds.slice(i,i+2000)],['account_id','in',accountIds]]],
+        { fields:['move_id'], limit:100000 });
+      lines.forEach(l => relevantIds.add(l.move_id?.[0]));
+    }
+    const relevantBills = bills.filter(b => relevantIds.has(b.id));
+
+    // Build months list
+    const months = [];
+    const cur = new Date(dateFrom.substring(0,7)+'-01');
+    const end = new Date(dateTo.substring(0,7)+'-01');
+    while (cur <= end) { months.push(cur.toISOString().substring(0,7)); cur.setMonth(cur.getMonth()+1); }
+
+    // Group by vendor x month
+    const vendorMap = {};
+    relevantBills.forEach(b => {
+      const pid   = b.partner_id?.[0];
+      const pname = b.partner_id?.[1] || 'Unknown';
+      const month = (b.invoice_date||'').substring(0,7);
+      if (!pid || !month) return;
+      if (!vendorMap[pid]) vendorMap[pid] = { partner_id:pid, partner_name:pname, monthly:{} };
+      if (!vendorMap[pid].monthly[month]) vendorMap[pid].monthly[month] = { count:0, amount:0 };
+      vendorMap[pid].monthly[month].count++;
+      vendorMap[pid].monthly[month].amount += Math.abs(b.amount_total||0);
+    });
+
+    const vendors = Object.values(vendorMap)
+      .map(v => {
+        const active  = months.filter(m => v.monthly[m]);
+        const missing = months.filter(m => !v.monthly[m]);
+        const total   = active.reduce((s,m) => s + (v.monthly[m]?.amount||0), 0);
+        return { ...v, active_months:active.length, missing_months:missing,
+          has_gaps: missing.length > 0 && active.length > 0,
+          total_amount: Math.round(total*100)/100,
+          avg_monthly:  active.length ? Math.round(total/active.length) : 0 };
+      })
+      .filter(v => v.active_months >= minMonths)
+      .sort((a,b) => b.missing_months.length - a.missing_months.length || b.total_amount - a.total_amount);
+
+    console.log('  ✅ ' + vendors.length + ' recurring vendors | ' + vendors.filter(v=>v.has_gaps).length + ' have gaps');
+    res.json({ ok:true, months, vendors, total_vendors:vendors.length, vendors_with_gaps:vendors.filter(v=>v.has_gaps).length });
+
+  } catch(e) {
+    console.error('❌ Vendor pattern error:', e.message);
+    res.status(400).json({ ok:false, error:e.message });
   }
 });
 
