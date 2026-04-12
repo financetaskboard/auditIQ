@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Attachment Audit Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root {
     --primary: #0078d4;
@@ -249,6 +250,17 @@
   .pattern-stat { font-size: 11px; color: var(--text2); }
   .account-cell  { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text2); }
 
+  /* ── Attachment filter toggle ── */
+  .att-toggle { display: flex; gap: 0; border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; }
+  .att-toggle-btn { padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: var(--surface); color: var(--text2); font-family: inherit; transition: all .12s; white-space: nowrap; }
+  .att-toggle-btn:hover { background: var(--primary-light); color: var(--primary); }
+  .att-toggle-btn.active-missing  { background: #fde7e9; color: var(--danger); }
+  .att-toggle-btn.active-has      { background: #dff6dd; color: var(--success); }
+  .att-toggle-btn.active-all      { background: var(--primary-light); color: var(--primary); }
+  .att-toggle-btn + .att-toggle-btn { border-left: 1px solid var(--border2); }
+  .badge-has-att { background: #dff6dd; color: #107c10; }
+  .badge-no-att  { background: #fde7e9; color: #a4262c; }
+
   /* ── BS Account hover tooltip ── */
   .bs-wrap { position: relative; display: inline-block; }
   .bs-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-size: 11px; font-weight: 700; cursor: default; border: 1px solid #c7e0f4; flex-shrink: 0; }
@@ -418,6 +430,18 @@
         <span class="content-topbar-title" id="missingTitle">Missing Attachments</span>
         <span id="missingFYLabel" style="font-size:11px;color:var(--text2);background:var(--primary-light);padding:2px 10px;border-radius:10px;margin-left:4px"></span>
         <div class="content-topbar-actions">
+          <!-- Attachment filter toggle -->
+          <div class="att-toggle" title="Filter by attachment status">
+            <button class="att-toggle-btn active-missing" id="togMissing"  onclick="setAttFilter('missing')">⚠ Missing</button>
+            <button class="att-toggle-btn"                id="togHas"      onclick="setAttFilter('has')">✓ Has Attachment</button>
+            <button class="att-toggle-btn"                id="togAll"      onclick="setAttFilter('all')">All</button>
+          </div>
+          <div class="topbar-sep"></div>
+          <!-- Download All — only visible on "Has Attachment" view -->
+          <button class="topbar-btn" id="btnDownloadAll" onclick="downloadAllAttachments()" style="display:none;color:var(--success);border-color:var(--success)" title="Download all attachments for visible entries as ZIP">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+            Download All as ZIP
+          </button>
           <button class="topbar-btn primary" onclick="exportCSV()">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
             Export CSV
@@ -1008,8 +1032,10 @@ async function loadPersisted(key) {
 
 
 // ── State ─────────────────────────────────────────────────────
-let allData      = [];
-let filtered     = [];
+let allData         = [];   // missing attachment entries
+let allDataWithAtt  = [];   // entries that have attachments
+let filtered        = [];
+let attFilter       = 'missing';  // 'missing' | 'has' | 'all'
 let sortCol      = 'date';
 let sortDir      = -1;
 let page         = 1;
@@ -1156,10 +1182,16 @@ async function runAudit() {
     const res = await r.json();
     if (!res.ok) throw new Error(res.error || 'Sync failed');
 
-    // Merge: remove entries in the synced date range (refresh), keep others (accumulate)
-    const preserved = allData.filter(r => r.date < dateFrom || r.date > dateTo);
+    // Merge missing — preserve outside range, replace inside range
+    const preserved    = allData.filter(r => r.date < dateFrom || r.date > dateTo);
     allData  = [...preserved, ...(res.data || [])];
     allData.sort((a, b) => b.date.localeCompare(a.date));
+
+    // Merge withAtt — same logic
+    const preservedAtt = allDataWithAtt.filter(r => r.date < dateFrom || r.date > dateTo);
+    allDataWithAtt = [...preservedAtt, ...(res.data_with_attachment || [])];
+    allDataWithAtt.sort((a, b) => b.date.localeCompare(a.date));
+
     filtered = [...allData];
     page     = 1;
 
@@ -1432,17 +1464,33 @@ function setSyncMultiFY(n, panelId, btn) {
     `Fetching ${n} FYs: ${fromDate} → ${toDate}`;
 }
 
+// Set attachment filter: 'missing' | 'has' | 'all'
+function setAttFilter(mode) {
+  attFilter = mode;
+  document.getElementById('togMissing').className = 'att-toggle-btn' + (mode==='missing'?' active-missing':'');
+  document.getElementById('togHas').className     = 'att-toggle-btn' + (mode==='has'    ?' active-has':'');
+  document.getElementById('togAll').className     = 'att-toggle-btn' + (mode==='all'    ?' active-all':'');
+  // Show Download All only for "Has Attachment" view
+  document.getElementById('btnDownloadAll').style.display = mode === 'has' ? 'flex' : 'none';
+  applyFilter();
+}
+
 function applyFilter() {
   const q  = (document.getElementById('searchBox').value || '').toLowerCase().trim();
   const fy = document.getElementById('viewFY')?.value || 'all';
   const { from: fyFrom, to: fyTo } = fyViewDates(fy);
 
-  // First apply FY date range filter on the full dataset
-  let base = fyFrom
-    ? allData.filter(r => r.date >= fyFrom && r.date <= fyTo)
-    : [...allData];
+  // Pick source dataset based on attachment filter
+  const source = attFilter === 'has' ? allDataWithAtt
+               : attFilter === 'all' ? [...allData, ...allDataWithAtt].sort((a,b)=>b.date.localeCompare(a.date))
+               : allData;  // 'missing' (default)
 
-  // Then apply text search on top
+  // Apply FY date filter
+  let base = fyFrom
+    ? source.filter(r => r.date >= fyFrom && r.date <= fyTo)
+    : [...source];
+
+  // Apply text search
   filtered = q
     ? base.filter(r => ['entry_no','partner','bill_ref','narration','journal','expense_accounts','bs_accounts']
         .some(k => (r[k]||'').toLowerCase().includes(q)))
@@ -1450,9 +1498,12 @@ function applyFilter() {
   page = 1;
   renderTable();
 
-  // Update title count
+  // Update title
+  const label = attFilter === 'has' ? 'With Attachment'
+              : attFilter === 'all' ? 'All Entries'
+              : 'Missing Attachments';
   const titleEl = document.getElementById('missingTitle');
-  if (titleEl) titleEl.textContent = `Missing Attachments (${filtered.length} entries)`;
+  if (titleEl) titleEl.textContent = `${label} (${filtered.length} entries)`;
 }
 
 function sortBy(col) {
@@ -1504,7 +1555,10 @@ function renderTable() {
         <td class="sno">${start+i+1}</td>
         <td><strong style="color:var(--primary);font-size:13px">${x(r.entry_no)}</strong></td>
         <td style="white-space:nowrap;font-size:12px">${r.date||''}</td>
-        <td><span class="badge ${badgeCls}">${x(r.type_label)}</span></td>
+        <td>
+          <span class="badge ${badgeCls}">${x(r.type_label)}</span>
+          ${attFilter !== 'missing' ? `<span class="badge ${r.has_attachment ? 'badge-has-att' : 'badge-no-att'}" style="margin-left:4px">${r.has_attachment ? '✓ Attached' : '✗ Missing'}</span>` : ''}
+        </td>
         <td style="font-size:12px;white-space:nowrap">${x(r.journal)}</td>
         <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="${x(r.partner)}">${x(r.partner)||'—'}</td>
         <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2)" title="${x(r.bill_ref)}">${x(r.bill_ref)||'—'}</td>
@@ -1558,6 +1612,65 @@ function goPage(p) {
 }
 
 function x(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Download All Attachments as ZIP ──────────────────────────
+async function downloadAllAttachments() {
+  if (!filtered.length) { toast('No entries to download','error'); return; }
+
+  const hasRecords = filtered.filter(r => r.has_attachment !== false);
+  if (!hasRecords.length) { toast('No attachments found in current view','error'); return; }
+
+  const limit = 50;
+  const toFetch = hasRecords.slice(0, limit);
+  if (hasRecords.length > limit) {
+    toast(`Downloading first ${limit} of ${hasRecords.length} entries (apply filters to narrow down)`, 'info');
+  } else {
+    toast(`Fetching ${toFetch.length} attachments from Odoo…`, 'info');
+  }
+
+  const btn = document.getElementById('btnDownloadAll');
+  const origText = btn.innerHTML;
+  btn.innerHTML = '⏳ Fetching…'; btn.disabled = true;
+
+  try {
+    const r = await fetch(`${PROXY}/api/attachments/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        moveIds: toFetch.map(r => r.odoo_id),
+        entries: toFetch.map(r => ({ odoo_id: r.odoo_id, entry_no: r.entry_no }))
+      })
+    });
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.error || 'Failed to fetch attachments');
+    if (!res.attachments?.length) { toast('No attachment files found','error'); return; }
+
+    btn.innerHTML = '📦 Zipping…';
+
+    // Build ZIP using JSZip
+    const zip = new JSZip();
+    // Group by entry_no folder for easy navigation
+    res.attachments.forEach(att => {
+      const safeEntry = (att.entry_no || 'Unknown').replace(/[\/\:*?"<>|]/g, '_');
+      const safeFile  = (att.filename  || 'file').replace(/[\/\:*?"<>|]/g, '_');
+      zip.file(`${safeEntry}/${safeFile}`, att.data_b64, { base64: true });
+    });
+
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `attachments_${new Date().toISOString().slice(0,10)}.zip`
+    });
+    a.click();
+    toast(`✅ Downloaded ${res.attachments.length} attachments as ZIP`, 'success');
+
+  } catch(e) {
+    toast('Download failed: ' + e.message, 'error');
+    console.error(e);
+  } finally {
+    btn.innerHTML = origText; btn.disabled = false;
+  }
+}
 
 // ── Export CSV ────────────────────────────────────────────────
 function exportCSV() {
@@ -1681,6 +1794,7 @@ function saveState() {
   };
   persistMeta('attAuditMeta', meta);
   persistData('attAuditData', allData);
+  persistData('attAuditDataWithAtt', allDataWithAtt);
 }
 
 async function restoreState() {
@@ -1688,8 +1802,10 @@ async function restoreState() {
     const m = await loadPersisted('attAuditMeta');
     if (!m) return;
 
-    const rawData = await loadPersisted('attAuditData');
-    allData  = Array.isArray(rawData) ? rawData : [];
+    const rawData    = await loadPersisted('attAuditData');
+    const rawWithAtt = await loadPersisted('attAuditDataWithAtt');
+    allData        = Array.isArray(rawData)    ? rawData    : [];
+    allDataWithAtt = Array.isArray(rawWithAtt) ? rawWithAtt : [];
     filtered = [...allData];
     lastMeta = m.meta || {};
 

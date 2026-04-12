@@ -391,18 +391,21 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
       else missing.push(row);
     });
 
-    // Sort missing by date descending
+    // Sort by date descending
     missing.sort((a, b) => b.date.localeCompare(a.date));
+    withAtt.sort((a, b) => b.date.localeCompare(a.date));
     missing.forEach((r, i) => { r.id = i + 1; });
+    withAtt.forEach((r, i) => { r.id = i + 1; });
 
     res.json({
       ok: true,
-      total:            allMoves.length,
-      missing:          missing.length,
-      with_attachment:  withAtt.length,
-      accounts_checked: accountIds.length,
+      total:             allMoves.length,
+      missing:           missing.length,
+      with_attachment:   withAtt.length,
+      accounts_checked:  accountIds.length,
       accounts_excluded: excludedCount,
-      data:             missing
+      data:              missing,
+      data_with_attachment: withAtt   // entries that already have attachments
     });
 
   } catch (e) {
@@ -411,6 +414,52 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
   }
 });
 
+
+
+// ── POST /api/attachments/download ───────────────────────────
+// Downloads actual attachment files for given move IDs from Odoo.
+// Returns JSON: { ok, attachments: [{ move_id, entry_no, filename, mimetype, data_b64 }] }
+// Client-side uses JSZip to bundle into a ZIP for download.
+// Limit: 100 attachments max to avoid timeout.
+app.post('/api/attachments/download', async (req, res) => {
+  const s = loadSettings();
+  const { moveIds = [], entries = [] } = req.body;  // entries = [{ odoo_id, entry_no }]
+  if (!moveIds.length) return res.status(400).json({ ok: false, error: 'No move IDs provided' });
+
+  const limitedIds = moveIds.slice(0, 100);  // max 100 attachments
+  console.log(`\n📎 Attachment Download | ${limitedIds.length} entries`);
+
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+
+    // Fetch all attachments for these moves
+    const atts = await odooCall(session, 'ir.attachment', 'search_read',
+      [[['res_model', '=', 'account.move'], ['res_id', 'in', limitedIds]]],
+      { fields: ['id', 'name', 'mimetype', 'res_id', 'datas'], limit: 500 }
+    );
+
+    // Build entry_no lookup
+    const entryMap = {};
+    entries.forEach(e => { entryMap[e.odoo_id] = e.entry_no || String(e.odoo_id); });
+
+    const attachments = atts
+      .filter(a => a.datas)  // skip attachments with no data
+      .map(a => ({
+        move_id:   a.res_id,
+        entry_no:  entryMap[a.res_id] || String(a.res_id),
+        filename:  a.name || `attachment_${a.id}`,
+        mimetype:  a.mimetype || 'application/octet-stream',
+        data_b64:  a.datas    // already base64 from Odoo
+      }));
+
+    console.log(`  ✅ ${attachments.length} attachments fetched`);
+    res.json({ ok: true, count: attachments.length, attachments });
+
+  } catch(e) {
+    console.error('❌ Attachment download error:', e.message);
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
 
 // ── POST /api/sync/vendor-pattern ────────────────────────────
 // Month-wise recurring expense pattern per vendor.
