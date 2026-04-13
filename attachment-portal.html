@@ -2852,7 +2852,22 @@ function onTDSMappingChange(sel) {
 
 function saveTDSMapping() {
   tdsPayable = document.getElementById('tdsPayableAccounts').value.trim();
-  // Persist to localStorage
+
+  // Read ALL select values from the modal table — not just manually changed ones.
+  // Auto-detected accounts also need to be captured.
+  const newMapping = {};
+  document.querySelectorAll('#tdsMappingBody select[data-code]').forEach(sel => {
+    if (sel.value) newMapping[sel.dataset.code] = sel.value;
+  });
+
+  // Merge with any existing overrides not currently visible (filtered out)
+  // so we don't lose mappings for accounts that were filtered from view
+  Object.entries(tdsMapping).forEach(([code, sec]) => {
+    if (!newMapping.hasOwnProperty(code)) newMapping[code] = sec;
+  });
+
+  tdsMapping = newMapping;
+
   try {
     localStorage.setItem('tdsMapping',  JSON.stringify(tdsMapping));
     localStorage.setItem('tdsPayable', tdsPayable);
