@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Attachment Audit Portal</title>
+<title>Odoo Books Audit</title>
+<meta name="description" content="Odoo compliance and audit intelligence — missing attachments, TDS compliance, vendor patterns, duplicate invoices and more." />
+<meta name="theme-color" content="#1b1a19" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 36 36' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 7C3 5.9 3.9 5 5 5H17V29H5C3.9 29 3 28.1 3 27V7Z' fill='%231a6fc4'/%3E%3Cpath d='M19 5H31C32.1 5 33 5.9 33 7V27C33 28.1 32.1 29 31 29H19V5Z' fill='%232488d4'/%3E%3Crect x='17' y='5' width='2' height='24' fill='%230a4a8a'/%3E%3Cline x1='7' y1='11' x2='15' y2='11' stroke='%237ab8e8' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='7' y1='14' x2='15' y2='14' stroke='%237ab8e8' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='7' y1='17' x2='12' y2='17' stroke='%237ab8e8' stroke-width='1.5' stroke-linecap='round'/%3E%3Ccircle cx='26' cy='18' r='7' fill='%2300c853'/%3E%3Cpolyline points='22.5,18 25,20.5 29.5,15' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root {
@@ -35,7 +38,7 @@
 
   /* ── Shell ── */
   .shell { background: var(--shell-bg); height: 48px; min-height: 48px; display: flex; align-items: center; z-index: 1000; flex-shrink: 0; }
-  .shell-brand { width: 240px; min-width: 240px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-right: 1px solid #2d2c2b; height: 100%; }
+  .shell-brand { width: 260px; min-width: 260px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-right: 1px solid #2d2c2b; height: 100%; }
   .shell-logo { display: flex; align-items: center; gap: 9px; color: #fff; font-size: 14px; font-weight: 700; }
   .shell-logo svg { width: 18px; height: 18px; flex-shrink: 0; }
   .shell-logo-sub { color: #8a8886; font-size: 11px; font-weight: 400; margin-top: 1px; }
@@ -55,7 +58,7 @@
 
   /* ── Sidebar: click-toggle collapse (Zoho style) ── */
   .sidebar { width: 56px; min-width: 56px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; transition: width .22s cubic-bezier(.4,0,.2,1); flex-shrink: 0; position: relative; z-index: 100; }
-  .sidebar.expanded { width: 240px; box-shadow: 4px 0 12px rgba(0,0,0,.08); }
+  .sidebar.expanded { width: 260px; box-shadow: 4px 0 12px rgba(0,0,0,.08); }
   /* Text labels — hidden when collapsed */
   .sidebar .nav-label, .sidebar .nav-section-label, .sidebar .cmd-label, .sidebar .sidebar-cmd .cmd-btn span, .nav-badge { opacity: 0; transition: opacity .12s; white-space: nowrap; overflow: hidden; max-width: 0; }
   .sidebar.expanded .nav-label, .sidebar.expanded .nav-section-label, .sidebar.expanded .cmd-label, .sidebar.expanded .sidebar-cmd .cmd-btn span, .sidebar.expanded .nav-badge { opacity: 1; max-width: 200px; }
@@ -286,15 +289,25 @@
 <div class="shell">
   <div class="shell-brand">
     <div class="shell-logo">
-      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1"  y="1"  width="8" height="8" fill="#0078d4"/>
-        <rect x="11" y="1"  width="8" height="8" fill="#50e6ff"/>
-        <rect x="1"  y="11" width="8" height="8" fill="#00a4ef"/>
-        <rect x="11" y="11" width="8" height="8" fill="#ffb900"/>
+      <!-- Odoo Books Audit logo mark: stylised open book with a checkmark spark -->
+      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:34px;height:34px;flex-shrink:0">
+        <!-- Book left page -->
+        <path d="M3 7C3 5.9 3.9 5 5 5H17V29H5C3.9 29 3 28.1 3 27V7Z" fill="#1a6fc4"/>
+        <!-- Book right page -->
+        <path d="M19 5H31C32.1 5 33 5.9 33 7V27C33 28.1 32.1 29 31 29H19V5Z" fill="#2488d4"/>
+        <!-- Book spine highlight -->
+        <rect x="17" y="5" width="2" height="24" fill="#0a4a8a"/>
+        <!-- Left page lines -->
+        <line x1="7" y1="11" x2="15" y2="11" stroke="#7ab8e8" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="7" y1="14" x2="15" y2="14" stroke="#7ab8e8" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="7" y1="17" x2="12" y2="17" stroke="#7ab8e8" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- Right page: checkmark -->
+        <circle cx="26" cy="18" r="7" fill="#00c853" opacity="0.95"/>
+        <polyline points="22.5,18 25,20.5 29.5,15" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       </svg>
       <div>
-        <div>Attachment Audit</div>
-        <div class="shell-logo-sub">Odoo Compliance Tool</div>
+        <div style="font-size:15px;font-weight:800;letter-spacing:-0.3px">Odoo Books Audit</div>
+        <div class="shell-logo-sub">Compliance &amp; Audit Intelligence</div>
       </div>
     </div>
   </div>
@@ -385,7 +398,7 @@
     <div class="sidebar-footer">
       <button class="cmd-btn" onclick="openSettings()" title="Odoo Settings" style="color:var(--text2);font-size:12px;justify-content:center;padding:6px 0;">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.892 3.433-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.892-1.64-.901-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.474l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/></svg>
-        <span class="nav-label" style="margin-left:8px">Odoo Settings</span>
+        <span class="nav-label" style="margin-left:8px">App Settings</span>
       </button>
       <!-- Zoho-style expand/collapse toggle -->
       <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle" title="Expand / Collapse">
@@ -411,12 +424,15 @@
       </div>
 
       <div style="padding:20px 24px; overflow-y:auto;">
-        <div class="section-title">Attachment Audit</div>
-        <div class="section-desc">Identify posted journal entries that are missing supporting attachments in Odoo. Switch to the <strong>Missing Attachments</strong> tab and select a View FY to filter results.</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+          <div class="section-title" style="margin-bottom:0">Odoo Books Audit</div>
+          <span style="background:#0078d4;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.5px">v2.0</span>
+        </div>
+        <div class="section-desc">Your intelligent Odoo compliance dashboard. Detect missing attachments, vendor anomalies, TDS gaps, duplicate invoices and more — all in one place.</div>
 
         <div id="dashAlert" class="alert alert-info">
           <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
-          <span>Set your date range in the <strong>Missing Attachments</strong> tab and click <strong>Run Audit</strong> to fetch from Odoo.</span>
+          <span>Use the sidebar modules to run compliance checks. Start with <strong>Missing Attachments</strong> → open Sync Settings → select a period → Fetch from Odoo.</span>
         </div>
 
         <div class="info-cards">
@@ -1310,7 +1326,7 @@
 <div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">⚙ Odoo Connection Settings</span>
+      <span class="modal-title">⚙ Connection Settings — Odoo Books Audit</span>
       <button class="modal-close" onclick="closeSettings()">✕</button>
     </div>
     <div class="modal-body">

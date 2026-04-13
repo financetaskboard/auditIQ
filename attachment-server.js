@@ -1,8 +1,8 @@
 /**
  * ╔══════════════════════════════════════════════════════════════╗
- * ║     ATTACHMENT AUDIT PORTAL — Odoo Local Proxy  v1.0        ║
+ * ║     ODOO BOOKS AUDIT — Odoo Compliance Intelligence v2.0        ║
  * ║   Runs on http://localhost:3002                              ║
- * ║   Purpose: Find Journal Entries with missing attachments     ║
+ * ║   Purpose: Odoo compliance & audit intelligence platform     ║
  * ║   Flow: P&L → Expense Accounts → Journal Entries → Audit    ║
  * ╚══════════════════════════════════════════════════════════════╝
  */
@@ -98,7 +98,7 @@ async function odooCall(session, model, method, args = [], kwargs = {}) {
 
 // ── GET /health ────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', server: 'Attachment Audit Proxy v1', port: PORT, cloudMode: IS_CLOUD, time: new Date().toISOString() });
+  res.json({ status: 'ok', server: 'Odoo Books Audit v2', port: PORT, cloudMode: IS_CLOUD, time: new Date().toISOString() });
 });
 
 // ── GET /api/settings ──────────────────────────────────────────
@@ -175,7 +175,7 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
     return res.status(400).json({ ok: false, error: 'dateFrom and dateTo are required' });
   }
 
-  console.log(`\n📎 Attachment Audit | ${dateFrom} → ${dateTo} | scope=${accountScope} | type=${entryType}`);
+  console.log(`\n📎 Missing Attachments | ${dateFrom} → ${dateTo} | scope=${accountScope} | type=${entryType}`);
 
   try {
     const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
@@ -1130,7 +1130,7 @@ app.get('/', (req, res) => {
 // ── Start ──────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n╔══════════════════════════════════════════════════════╗`);
-  console.log(`║  Attachment Audit Proxy  v1.0  →  port ${PORT}          ║`);
+  console.log(`║  Odoo Books Audit     v2.0  →  port ${PORT}          ║`);
   console.log(`║  Mode: ${IS_CLOUD ? '☁  CLOUD (Render)                      ' : '💻 LOCAL                               '}  ║`);
   console.log(`╠══════════════════════════════════════════════════════╣`);
   console.log(`║  GET  /health                    server check        ║`);
