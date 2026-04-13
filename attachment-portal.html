@@ -143,6 +143,13 @@
   .data-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   .data-table tr:last-child td { border-bottom: none; }
   .data-table tr:hover td { background: #fde7e9; }
+  .row-weekend  td { background: #fff8e6 !important; }
+  .row-weekend:hover td { background: #ffeecc !important; }
+  .row-holiday  td { background: #fce4ec !important; }
+  .row-holiday:hover td { background: #f8bbd0 !important; }
+  .row-weekend.row-holiday td { background: #fce4ec !important; }
+  .weekend-badge { display:inline-block;background:#ff9800;color:#fff;border-radius:4px;font-size:9px;font-weight:700;padding:1px 5px;margin-left:4px;vertical-align:middle; }
+  .holiday-badge { display:inline-block;background:#e91e63;color:#fff;border-radius:4px;font-size:9px;font-weight:700;padding:1px 5px;margin-left:4px;vertical-align:middle; }
   .sno { color: var(--text3); font-size: 11px; width: 36px; }
   .amt { font-family: 'Courier New', monospace; text-align: right; white-space: nowrap; }
 
@@ -347,6 +354,24 @@
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10.854 7.854a.5.5 0 0 0-.708-.708L7.5 9.793 6.354 8.646a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0l3-3z"/><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg>
         <span class="nav-label">TDS Compliance</span>
         <span class="nav-badge zero" id="cnt-tds">0</span>
+      </div>
+
+      <div class="nav-item" id="nav-duplicates" onclick="switchTab('duplicates')" title="Duplicate Invoices">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h9A1.5 1.5 0 0 1 13 3.5v2h1.5A1.5 1.5 0 0 1 16 7v7.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 4 14.5v-2h-1.5A1.5 1.5 0 0 1 1 11V3.5zm2 10a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V7a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5v6.5zm10-9V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5V5h8A1.5 1.5 0 0 1 13 6.5v.5h1.5a.5.5 0 0 0 .5-.5z"/></svg>
+        <span class="nav-label">Duplicate Invoices</span>
+        <span class="nav-badge zero" id="cnt-duplicates">0</span>
+      </div>
+
+      <div class="nav-item" id="nav-backdated" onclick="switchTab('backdated')" title="Backdated Entries">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/><path d="M11 6.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm-3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm-5 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1z"/></svg>
+        <span class="nav-label">Backdated Entries</span>
+        <span class="nav-badge zero" id="cnt-backdated">0</span>
+      </div>
+
+      <div class="nav-item" id="nav-weekend" onclick="switchTab('weekend')" title="Weekend &amp; Holiday Entries">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1zm7.5 3.5a.5.5 0 0 0-1 0v2.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 2a.5.5 0 0 0 .708 0l2-2a.5.5 0 0 0-.708-.708L8.5 9.293V7.5z"/></svg>
+        <span class="nav-label">Weekend &amp; Holidays</span>
+        <span class="nav-badge zero" id="cnt-weekend">0</span>
       </div>
 
       <div class="nav-section-label" style="margin-top:4px">Actions</div>
@@ -954,6 +979,283 @@
       </div>
     </div>
 
+
+    <!-- ── DUPLICATE INVOICES PAGE ── -->
+    <div id="page-duplicates" class="page" style="padding:0;display:none;flex-direction:column;">
+      <div class="content-topbar">
+        <span class="content-topbar-title" id="dupTitle">Duplicate Invoice Detection</span>
+        <div class="content-topbar-actions">
+          <button class="topbar-btn" onclick="openDupSync()">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Sync Settings
+          </button>
+          <button class="topbar-btn primary" onclick="exportDuplicates()">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+      <!-- Sync panel -->
+      <div id="dupSyncPanel" style="display:none;padding:10px 16px;background:#fffbe6;border-bottom:1px solid #ffe89a;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:#7a4f00">⬇ Sync from Odoo:</span>
+          <div class="filter-group"><label class="filter-label">From</label><input type="date" class="fl-input" id="dupDateFrom" style="width:138px"/></div>
+          <div class="filter-group"><label class="filter-label">To</label><input type="date" class="fl-input" id="dupDateTo" style="width:138px"/></div>
+          <div class="filter-group" style="gap:4px">
+            <button class="period-btn" onclick="setDupFY('2024-25',this)">FY 24-25</button>
+            <button class="period-btn" onclick="setDupFY('2025-26',this)" style="background:#d4edda;border-color:#28a745;color:#155724">FY 25-26</button>
+            <button class="period-btn" onclick="setDupFY('2026-27',this)">FY 26-27</button>
+          </div>
+          <button class="topbar-btn primary" onclick="runDuplicates()">Fetch Now</button>
+          <button onclick="document.getElementById('dupSyncPanel').style.display='none'" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#7a4f00;font-size:16px;">✕</button>
+        </div>
+      </div>
+      <!-- Filter bar -->
+      <div class="filter-bar" style="background:#f8f7f6;border-bottom:2px solid var(--border);">
+        <div class="filter-group">
+          <label class="filter-label">Severity</label>
+          <select class="fl-select" id="dupFilter" style="width:160px" onchange="renderDuplicates()">
+            <option value="all">All</option>
+            <option value="high">🔴 Same Bill Reference</option>
+            <option value="medium">🟡 Same Amount (7-day)</option>
+          </select>
+        </div>
+        <div style="margin-left:auto"><input type="text" class="fl-input" id="dupSearch" placeholder="🔍 Search vendor…" style="width:220px" oninput="renderDuplicates()"/></div>
+      </div>
+      <!-- Summary -->
+      <div id="dupCards" style="display:none;padding:8px 16px 0;flex-shrink:0;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div class="info-card hl-red" style="padding:10px 16px;flex:1;min-width:130px"><div class="info-card-label">Same Bill Ref</div><div class="info-card-value red" id="dup-high">—</div><div class="info-card-sub">Likely duplicates</div></div>
+          <div class="info-card" style="padding:10px 16px;flex:1;min-width:130px;background:#fff4ce;border-color:#ffe89a"><div class="info-card-label">Same Amt (7-day)</div><div class="info-card-value orange" id="dup-medium">—</div><div class="info-card-sub">Suspicious entries</div></div>
+          <div class="info-card" style="padding:10px 16px;flex:2;min-width:260px;background:#fff4ce;border-color:#ffe89a"><div class="info-card-label" style="color:#7a4f00">How to Read</div><div style="font-size:12px;color:#7a4f00;margin-top:4px"><strong>🔴 Same Bill Reference</strong> = same vendor + same ref number posted twice — very likely duplicate.<br><strong>🟡 Same Amount</strong> = same vendor + same amount within 7 days — investigate manually.</div></div>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:10px 16px 0;">
+        <div class="table-wrap" id="dupWrap">
+          <table class="data-table"><thead><tr>
+            <th class="sno">#</th>
+            <th>Severity</th>
+            <th>Vendor</th>
+            <th>Date</th>
+            <th>Entry No.</th>
+            <th>Bill Reference</th>
+            <th style="text-align:right">Amount (₹)</th>
+            <th>Duplicate Of</th>
+            <th>Journal</th>
+            <th style="text-align:center;width:56px">Open</th>
+          </tr></thead><tbody id="dupBody"></tbody></table>
+          <div id="dupEmpty" class="empty-state"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h9A1.5 1.5 0 0 1 13 3.5v2h1.5A1.5 1.5 0 0 1 16 7v7.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 4 14.5v-2h-1.5A1.5 1.5 0 0 1 1 11V3.5zm2 10a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V7a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5v6.5zm10-9V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5V5h8A1.5 1.5 0 0 1 13 6.5v.5h1.5a.5.5 0 0 0 .5-.5z"/></svg><h3 id="dupEmptyTitle">No Data Yet</h3><p id="dupEmptyDesc">Click Sync Settings and Fetch Now to check for duplicates.</p></div>
+        </div>
+      </div>
+      <div class="pagination"><span id="dupPageInfo">—</span><div class="page-btns" id="dupPageBtns"></div></div>
+    </div>
+
+    <!-- ── BACKDATED ENTRIES PAGE ── -->
+    <div id="page-backdated" class="page" style="padding:0;display:none;flex-direction:column;">
+      <div class="content-topbar">
+        <span class="content-topbar-title" id="bdTitle">Backdated Entry Detection</span>
+        <div class="content-topbar-actions">
+          <button class="topbar-btn" onclick="openBDSync()">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Sync Settings
+          </button>
+          <button class="topbar-btn primary" onclick="exportBackdated()">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+      <!-- Sync panel -->
+      <div id="bdSyncPanel" style="display:none;padding:10px 16px;background:#fffbe6;border-bottom:1px solid #ffe89a;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:#7a4f00">⬇ Sync from Odoo:</span>
+          <div class="filter-group"><label class="filter-label">From</label><input type="date" class="fl-input" id="bdDateFrom" style="width:138px"/></div>
+          <div class="filter-group"><label class="filter-label">To</label><input type="date" class="fl-input" id="bdDateTo" style="width:138px"/></div>
+          <div class="filter-group">
+            <label class="filter-label" title="Flag entries entered more than this many days after invoice date">Lag &gt;</label>
+            <select class="fl-select" id="bdLagDays" style="width:80px">
+              <option value="7">7 days</option>
+              <option value="15" selected>15 days</option>
+              <option value="30">30 days</option>
+              <option value="45">45 days</option>
+            </select>
+          </div>
+          <div class="filter-group" style="gap:4px">
+            <button class="period-btn" onclick="setBDFY('2024-25',this)">FY 24-25</button>
+            <button class="period-btn" onclick="setBDFY('2025-26',this)" style="background:#d4edda;border-color:#28a745;color:#155724">FY 25-26</button>
+            <button class="period-btn" onclick="setBDFY('2026-27',this)">FY 26-27</button>
+          </div>
+          <button class="topbar-btn primary" onclick="runBackdated()">Fetch Now</button>
+          <button onclick="document.getElementById('bdSyncPanel').style.display='none'" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#7a4f00;font-size:16px;">✕</button>
+        </div>
+      </div>
+      <!-- Filter bar -->
+      <div class="filter-bar" style="background:#f8f7f6;border-bottom:2px solid var(--border);">
+        <div class="filter-group">
+          <label class="filter-label">Show</label>
+          <select class="fl-select" id="bdFilter" style="width:180px" onchange="renderBackdated()">
+            <option value="all">All</option>
+            <option value="high">🔴 Cross-month only</option>
+          </select>
+        </div>
+        <div style="margin-left:auto"><input type="text" class="fl-input" id="bdSearch" placeholder="🔍 Search vendor…" style="width:220px" oninput="renderBackdated()"/></div>
+      </div>
+      <!-- Summary -->
+      <div id="bdCards" style="display:none;padding:8px 16px 0;flex-shrink:0;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div class="info-card hl-red" style="padding:10px 16px;flex:1;min-width:130px"><div class="info-card-label">Cross-Month</div><div class="info-card-value red" id="bd-high">—</div><div class="info-card-sub">Distorts monthly closing</div></div>
+          <div class="info-card" style="padding:10px 16px;flex:1;min-width:130px;background:#fff4ce;border-color:#ffe89a"><div class="info-card-label">Same Month Late</div><div class="info-card-value orange" id="bd-medium">—</div><div class="info-card-sub">Late but same period</div></div>
+          <div class="info-card" style="padding:10px 16px;flex:2;min-width:260px;background:#fff4ce;border-color:#ffe89a"><div class="info-card-label" style="color:#7a4f00">What is Backdated?</div><div style="font-size:12px;color:#7a4f00;margin-top:4px">Entry where <strong>invoice date</strong> is much earlier than <strong>entry creation date</strong>. Cross-month entries distort P&amp;L for closed months.</div></div>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:10px 16px 0;">
+        <div class="table-wrap" id="bdWrap">
+          <table class="data-table"><thead><tr>
+            <th class="sno">#</th>
+            <th>Severity</th>
+            <th>Vendor</th>
+            <th>Invoice Date</th>
+            <th>Entry Created</th>
+            <th>Lag (days)</th>
+            <th>Entry No.</th>
+            <th>Bill Reference</th>
+            <th style="text-align:right">Amount (₹)</th>
+            <th>Narration</th>
+            <th style="text-align:center;width:56px">Open</th>
+          </tr></thead><tbody id="bdBody"></tbody></table>
+          <div id="bdEmpty" class="empty-state"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5z"/></svg><h3 id="bdEmptyTitle">No Data Yet</h3><p id="bdEmptyDesc">Click Sync Settings and Fetch Now to check for backdated entries.</p></div>
+        </div>
+      </div>
+      <div class="pagination"><span id="bdPageInfo">—</span><div class="page-btns" id="bdPageBtns"></div></div>
+    </div>
+
+
+    <!-- ── WEEKEND & HOLIDAY ENTRIES PAGE ── -->
+    <div id="page-weekend" class="page" style="padding:0;display:none;flex-direction:column;">
+      <div class="content-topbar">
+        <span class="content-topbar-title" id="whTitle">Weekend &amp; Holiday Entries</span>
+        <div class="content-topbar-actions">
+          <button class="topbar-btn" onclick="openWHSync()" style="gap:4px">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Sync Settings
+          </button>
+          <button class="topbar-btn primary" onclick="exportWH()">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Sync Panel -->
+      <div id="whSyncPanel" style="display:none;padding:10px 16px;background:#fffbe6;border-bottom:1px solid #ffe89a;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:#7a4f00">⬇ Sync from Odoo:</span>
+          <div class="filter-group"><label class="filter-label">From</label><input type="date" class="fl-input" id="whDateFrom" style="width:138px"/></div>
+          <div class="filter-group"><label class="filter-label">To</label><input type="date" class="fl-input" id="whDateTo" style="width:138px"/></div>
+          <div class="filter-group" style="gap:4px">
+            <button class="period-btn" onclick="setWHFY('2023-24',this)">FY 23-24</button>
+            <button class="period-btn" onclick="setWHFY('2024-25',this)">FY 24-25</button>
+            <button class="period-btn" onclick="setWHFY('2025-26',this)" style="background:#d4edda;border-color:#28a745;color:#155724">FY 25-26</button>
+            <button class="period-btn" onclick="setWHFY('2026-27',this)">FY 26-27</button>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Entry Types</label>
+            <select class="fl-select" id="whEntryType" style="width:160px">
+              <option value="all">All Entry Types</option>
+              <option value="bills">Vendor Bills Only</option>
+              <option value="journals">Journal Entries Only</option>
+            </select>
+          </div>
+          <button class="topbar-btn primary" onclick="runWH()">Fetch Now</button>
+          <button onclick="document.getElementById('whSyncPanel').style.display='none'" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#7a4f00;font-size:16px;">✕</button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar" style="background:#f8f7f6;border-bottom:2px solid var(--border);">
+        <div class="filter-group">
+          <label class="filter-label" style="color:var(--primary);font-weight:700">📅 View FY</label>
+          <select class="fl-select" id="whViewFY" style="width:130px;font-weight:600;border-color:var(--primary)" onchange="applyWHFYView()">
+            <option value="all">All FYs</option>
+          </select>
+        </div>
+        <span id="whViewFYRange" style="font-size:11px;color:var(--text3);background:var(--primary-light);padding:2px 10px;border-radius:10px"></span>
+        <div class="filter-sep"></div>
+        <div class="filter-group">
+          <label class="filter-label">Show</label>
+          <select class="fl-select" id="whFilter" style="width:160px" onchange="renderWH()">
+            <option value="all">Weekends + Holidays</option>
+            <option value="holiday">Public Holidays Only</option>
+            <option value="weekend">Weekends Only</option>
+          </select>
+        </div>
+        <div style="margin-left:auto">
+          <input type="text" class="fl-input" id="whSearch" placeholder="🔍 Search vendor, entry, narration…" style="width:260px" oninput="renderWH()"/>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div id="whCards" style="display:none;padding:8px 16px 0;flex-shrink:0;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div class="info-card" style="padding:10px 16px;flex:1;min-width:120px;background:#fff8e6;border-color:#ffcc80">
+            <div class="info-card-label" style="color:#e65100">Weekend Entries</div>
+            <div class="info-card-value orange" id="wh-weekend">—</div>
+            <div class="info-card-sub">Posted on Sat / Sun</div>
+          </div>
+          <div class="info-card" style="padding:10px 16px;flex:1;min-width:120px;background:#fce4ec;border-color:#f48fb1">
+            <div class="info-card-label" style="color:#880e4f">Holiday Entries</div>
+            <div class="info-card-value red" id="wh-holiday">—</div>
+            <div class="info-card-sub">Posted on public holidays</div>
+          </div>
+          <div class="info-card" style="padding:10px 16px;flex:1;min-width:120px">
+            <div class="info-card-label">Total Amount</div>
+            <div class="info-card-value blue" id="wh-amount" style="font-size:18px">—</div>
+          </div>
+          <div class="info-card" style="padding:10px 16px;flex:2;min-width:260px;background:#fff4ce;border-color:#ffe89a;">
+            <div class="info-card-label" style="color:#7a4f00">Why does this matter?</div>
+            <div style="font-size:12px;color:#7a4f00;margin-top:4px">
+              Entries posted on weekends or holidays may indicate <strong>backdating</strong>, <strong>unauthorized access</strong>, or <strong>rushed closing entries</strong>. These should be reviewed with the approving user for proper authorization.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div style="flex:1;overflow-y:auto;padding:10px 16px 0;">
+        <div class="table-wrap" id="whWrap">
+          <table class="data-table" id="whTable">
+            <thead>
+              <tr>
+                <th class="sno">#</th>
+                <th onclick="sortWH('flag_type')">Type</th>
+                <th onclick="sortWH('date')">Date</th>
+                <th onclick="sortWH('day_name')">Day</th>
+                <th onclick="sortWH('holiday_name')">Holiday</th>
+                <th onclick="sortWH('entry_no')">Entry No.</th>
+                <th onclick="sortWH('type_label')">Entry Type</th>
+                <th onclick="sortWH('partner')">Vendor / Partner</th>
+                <th onclick="sortWH('journal')">Journal</th>
+                <th onclick="sortWH('bill_ref')">Bill Reference</th>
+                <th onclick="sortWH('narration')">Narration</th>
+                <th onclick="sortWH('amount')" style="text-align:right">Amount (₹)</th>
+                <th style="text-align:center;width:56px">Open</th>
+              </tr>
+            </thead>
+            <tbody id="whBody"></tbody>
+          </table>
+          <div id="whEmpty" class="empty-state" style="display:none">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:52px;height:52px"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg>
+            <h3 id="whEmptyTitle">No Data Yet</h3>
+            <p id="whEmptyDesc">Click <strong>Sync Settings</strong> → select a period → <strong>Fetch Now</strong></p>
+          </div>
+        </div>
+      </div>
+      <div class="pagination">
+        <span id="whPageInfo">—</span>
+        <div class="page-btns" id="whPageBtns"></div>
+      </div>
+    </div>
+
   </div><!-- /content-panel -->
 </div><!-- /app-body -->
 
@@ -1233,8 +1535,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     restorePatternState(),
     restoreDeviationState()
   ]);
-  restoreTDSState();
+  await restoreTDSState();
   onTDSFYChange();
+  restoreWHState();
 
   initFYViewLabels();
   pingProxy();
@@ -1263,10 +1566,28 @@ function pingProxy() {
       fetch(`${PROXY}/api/settings`).then(r=>r.json()).then(applySettingsUI).catch(()=>{});
     })
     .catch(() => {
-      dot.className = 'status-dot';
+      dot.className = 'status-dot connecting';
       const isLocal = ['localhost','127.0.0.1'].includes(window.location.hostname);
-      text.textContent = isLocal ? 'Proxy Offline — run: node attachment-server.js' : 'Server Error';
-      if (isLocal) toast('Proxy offline. Run: node attachment-server.js', 'error');
+      if (isLocal) {
+        dot.className = 'status-dot';
+        text.textContent = 'Proxy Offline — run: node attachment-server.js';
+        toast('Proxy offline. Run: node attachment-server.js', 'error');
+      } else {
+        // Render free tier — server is waking up (cold start can take 50s)
+        text.textContent = '⏳ Server waking up… (may take 30–60s on free tier)';
+        let secs = 0;
+        const wakeInterval = setInterval(() => {
+          secs++;
+          text.textContent = `⏳ Waking up… ${secs}s (Render free tier cold start)`;
+          fetch(`${PROXY}/health`).then(r => r.json()).then(h => {
+            clearInterval(wakeInterval);
+            dot.className = 'status-dot connected';
+            text.textContent = h.cloudMode ? 'Live on Render ☁' : 'Proxy Online';
+            fetch(`${PROXY}/api/settings`).then(r=>r.json()).then(applySettingsUI).catch(()=>{});
+          }).catch(() => {});
+          if (secs >= 90) { clearInterval(wakeInterval); text.textContent = 'Server not responding — check Render dashboard'; dot.className = 'status-dot'; }
+        }, 1000);
+      }
     });
 }
 
@@ -1291,7 +1612,7 @@ function switchTab(id) {
   document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const pg = document.getElementById('page-'+id);
-  if (pg) { pg.classList.add('active'); pg.style.display = ['missing','pattern','deviation','tds'].includes(id) ? 'flex' : 'block'; }
+  if (pg) { pg.classList.add('active'); pg.style.display = ['missing','pattern','deviation','tds','duplicates','backdated','weekend'].includes(id) ? 'flex' : 'block'; }
   const nv = document.getElementById('nav-'+id);
   if (nv) nv.classList.add('active');
 }
@@ -1389,6 +1710,10 @@ async function runAudit() {
     badge.textContent = res.missing || 0;
     badge.className   = `nav-badge ${res.missing > 0 ? '' : 'zero'}`;
 
+    if (res.truncated) {
+      toast(`⚠ Data truncated — ${res.truncation_warning}`, 'error');
+      setDashAlert(res.truncation_warning, 'warning');
+    }
     toast(res.missing === 0
       ? `✅ All ${res.total} entries are compliant!`
       : `⚠ ${res.missing} of ${res.total} entries missing attachments`,
@@ -1443,6 +1768,81 @@ function setDashAlert(msg, type) {
 }
 
 // ── Table ─────────────────────────────────────────────────────
+// ── Indian public holidays ───────────────────────────────────
+// Fixed national holidays — year-independent dates
+const INDIA_FIXED_HOLIDAYS = [
+  { month:1,  day:26, name:'Republic Day' },
+  { month:8,  day:15, name:'Independence Day' },
+  { month:10, day:2,  name:'Gandhi Jayanti' }
+];
+// Year-specific holidays (approximate — main national ones)
+// Format: "YYYY-MM-DD"
+const INDIA_VARIABLE_HOLIDAYS = {
+  '2024-01-22':'Ram Mandir Inauguration',
+  '2024-03-25':'Holi',
+  '2024-03-29':'Good Friday',
+  '2024-04-14':'Dr. Ambedkar Jayanti / Baisakhi',
+  '2024-04-17':'Ram Navami',
+  '2024-04-21':'Mahavir Jayanti',
+  '2024-05-23':'Buddha Purnima',
+  '2024-06-17':'Eid ul-Adha',
+  '2024-07-17':'Muharram',
+  '2024-08-26':'Janmashtami',
+  '2024-10-02':'Gandhi Jayanti',
+  '2024-10-12':'Dussehra',
+  '2024-10-13':'Navratri end',
+  '2024-11-01':'Diwali',
+  '2024-11-15':'Guru Nanak Jayanti',
+  '2024-12-25':'Christmas',
+  '2025-01-26':'Republic Day',
+  '2025-03-14':'Holi',
+  '2025-04-10':'Ram Navami',
+  '2025-04-14':'Dr. Ambedkar Jayanti',
+  '2025-04-18':'Good Friday',
+  '2025-05-12':'Buddha Purnima',
+  '2025-06-07':'Eid ul-Adha',
+  '2025-07-06':'Muharram',
+  '2025-08-15':'Independence Day',
+  '2025-08-16':'Janmashtami',
+  '2025-10-02':'Gandhi Jayanti',
+  '2025-10-02':'Dussehra',
+  '2025-10-20':'Diwali',
+  '2025-11-05':'Guru Nanak Jayanti',
+  '2025-12-25':'Christmas',
+  '2026-01-26':'Republic Day',
+  '2026-03-04':'Maha Shivratri',
+  '2026-03-20':'Holi (Dhuleti)',
+  '2026-03-30':'Ram Navami',
+  '2026-04-02':'Good Friday',
+  '2026-04-14':'Dr. Ambedkar Jayanti / Baisakhi',
+  '2026-04-19':'Mahavir Jayanti',
+  '2026-05-01':'May Day',
+  '2026-05-31':'Buddha Purnima',
+  '2026-08-15':'Independence Day',
+  '2026-09-04':'Janmashtami',
+  '2026-10-02':'Gandhi Jayanti',
+  '2026-11-08':'Diwali',
+  '2026-12-25':'Christmas'
+};
+
+function isWeekend(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const dow = d.getDay(); // 0=Sun, 6=Sat
+  return dow === 0 || dow === 6;
+}
+
+function getHolidayName(dateStr) {
+  if (!dateStr) return null;
+  // Check variable holidays
+  if (INDIA_VARIABLE_HOLIDAYS[dateStr]) return INDIA_VARIABLE_HOLIDAYS[dateStr];
+  // Check fixed holidays
+  const d = new Date(dateStr);
+  const m = d.getMonth()+1, day = d.getDate();
+  const fixed = INDIA_FIXED_HOLIDAYS.find(h => h.month===m && h.day===day);
+  return fixed ? fixed.name : null;
+}
+
 // ── FY view helpers (client-side, no Odoo call) ──────────────
 function fyViewDates(fy) {
   if (!fy || fy === 'all') return { from: null, to: null };
@@ -2689,8 +3089,15 @@ function initFYViewLabels() {
 // ── Clear accumulated data functions ─────────────────────────
 function clearAuditData() {
   if (!confirm('Clear all accumulated Missing Attachments data? This cannot be undone.')) return;
-  allData = []; filtered = []; lastMeta = {};
-  try { localStorage.removeItem('attAudit'); } catch(e){}
+  allData = []; filtered = []; allDataWithAtt = []; lastMeta = {}; syncedFYs = new Set();
+  try {
+    localStorage.removeItem('attAuditMeta');
+    localStorage.removeItem('attAuditData');
+    localStorage.removeItem('attAuditDataWithAtt');
+    localStorage.removeItem('attAudit'); // legacy key
+  } catch(e){}
+  // Also clear from Firebase
+  if (FB_ENABLED) { fbSet('auditiq/attAuditMeta', null); fbSet('auditiq/attAuditData', null); fbSet('auditiq/attAuditDataWithAtt', null); }
   populateViewFY([], 'viewFY');
   renderTable();
   updateDash({ total:0, missing:0, withAtt:0, accs:0, excluded:0,
@@ -2704,7 +3111,13 @@ function clearAuditData() {
 function clearPatternData() {
   if (!confirm('Clear all accumulated Vendor Pattern data?')) return;
   patternData = { months:[], vendors:[], total_vendors:0, vendors_with_gaps:0 };
-  try { localStorage.removeItem('attPattern'); } catch(e){}
+  syncedPatternFYs = new Set();
+  try {
+    localStorage.removeItem('attPatternMeta');
+    localStorage.removeItem('attPatternData');
+    localStorage.removeItem('attPattern'); // legacy
+  } catch(e){}
+  if (FB_ENABLED) { fbSet('auditiq/attPatternMeta', null); fbSet('auditiq/attPatternData', null); }
   populateViewFY([], 'pViewFY');
   document.getElementById('patternHead').innerHTML = '';
   document.getElementById('patternBody').innerHTML = '';
@@ -2720,7 +3133,13 @@ function clearPatternData() {
 function clearDeviationData() {
   if (!confirm('Clear all accumulated Account Deviation data?')) return;
   devData = []; devFiltered = [];
-  try { localStorage.removeItem('attDeviation'); } catch(e){}
+  syncedDeviationFYs = new Set();
+  try {
+    localStorage.removeItem('attDeviationMeta');
+    localStorage.removeItem('attDeviationData');
+    localStorage.removeItem('attDeviation'); // legacy
+  } catch(e){}
+  if (FB_ENABLED) { fbSet('auditiq/attDeviationMeta', null); fbSet('auditiq/attDeviationData', null); }
   populateViewFY([], 'dViewFY');
   document.getElementById('deviationBody').innerHTML = '';
   document.getElementById('deviationEmpty').style.display = 'block';
@@ -2872,6 +3291,10 @@ function saveTDSMapping() {
     localStorage.setItem('tdsMapping',  JSON.stringify(tdsMapping));
     localStorage.setItem('tdsPayable', tdsPayable);
   } catch(e){}
+  // Also save to Firebase so mapping persists across devices/browsers
+  if (FB_ENABLED) {
+    persistMeta('tdsMappingConfig', { mapping: tdsMapping, payable: tdsPayable });
+  }
   closeTDSMapping();
   toast(`TDS mapping saved — ${Object.keys(tdsMapping).length} accounts mapped`, 'success');
 }
@@ -3052,13 +3475,20 @@ function exportTDS() {
 }
 
 // ── Restore TDS state ─────────────────────────────────────────
-function restoreTDSState() {
+async function restoreTDSState() {
   try {
-    // Load mapping
-    const m = localStorage.getItem('tdsMapping');
-    if (m) tdsMapping = JSON.parse(m);
-    const p = localStorage.getItem('tdsPayable');
-    if (p) tdsPayable = p;
+    // Try Firebase first for mapping config
+    const fbConfig = await loadPersisted('tdsMappingConfig');
+    if (fbConfig?.mapping) {
+      tdsMapping = fbConfig.mapping;
+      tdsPayable = fbConfig.payable || '';
+    } else {
+      // Fallback to localStorage
+      const m = localStorage.getItem('tdsMapping');
+      if (m) tdsMapping = JSON.parse(m);
+      const p = localStorage.getItem('tdsPayable');
+      if (p) tdsPayable = p;
+    }
     // Load data
     const d = localStorage.getItem('tdsData');
     if (!d) return;
@@ -3077,6 +3507,443 @@ function restoreTDSState() {
     onTDSFYChange();
     renderTDS();
   } catch(e){}
+}
+
+// ══════════════════════════════════════════════════════════════
+// DUPLICATE INVOICE DETECTION
+// ══════════════════════════════════════════════════════════════
+let dupData = [], dupFiltered = [], dupPage = 1;
+const DUP_PAGE_SZ = 100;
+
+function openDupSync()  { const p=document.getElementById('dupSyncPanel'); p.style.display=p.style.display==='none'?'block':'none'; }
+function setDupFY(fy,btn) {
+  document.querySelectorAll('#dupSyncPanel .period-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const y=parseInt(fy.split('-')[0]);
+  document.getElementById('dupDateFrom').value=`${y}-04-01`;
+  document.getElementById('dupDateTo').value=`${y+1}-03-31`;
+}
+
+async function runDuplicates() {
+  const dateFrom = document.getElementById('dupDateFrom').value;
+  const dateTo   = document.getElementById('dupDateTo').value;
+  if (!dateFrom||!dateTo) { toast('Set a date range first','error'); return; }
+  setLoading(true);
+  try {
+    const r   = await fetch(`${PROXY}/api/sync/duplicate-invoices`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dateFrom,dateTo})});
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.error);
+    dupData     = res.duplicates || [];
+    dupFiltered = [...dupData];
+    dupPage     = 1;
+    document.getElementById('dup-high').textContent   = res.high || 0;
+    document.getElementById('dup-medium').textContent = res.medium || 0;
+    document.getElementById('dupCards').style.display = 'block';
+    document.getElementById('dupTitle').textContent   = `Duplicate Invoices — ${res.high} definite, ${res.medium} suspicious`;
+    const badge = document.getElementById('cnt-duplicates');
+    badge.textContent = res.total || 0;
+    badge.className   = `nav-badge ${(res.total||0)>0?'':'zero'}`;
+    renderDuplicates();
+    toast(res.high>0?`🔴 ${res.high} definite duplicates found!`:res.medium>0?`🟡 ${res.medium} suspicious entries found`:`✅ No duplicates found`, res.high>0?'error':'success');
+    document.getElementById('dupSyncPanel').style.display='none';
+  } catch(e) { toast('Error: '+e.message,'error'); }
+  finally { setLoading(false); }
+}
+
+function renderDuplicates() {
+  const q      = (document.getElementById('dupSearch')?.value||'').toLowerCase();
+  const filter = document.getElementById('dupFilter')?.value||'all';
+  let base = filter==='all' ? [...dupData] : dupData.filter(d=>d.severity===filter);
+  dupFiltered = q ? base.filter(d=>(d.vendor||'').toLowerCase().includes(q)||(d.bill_ref||'').toLowerCase().includes(q)) : base;
+  const tbody=document.getElementById('dupBody'), empty=document.getElementById('dupEmpty');
+  const info=document.getElementById('dupPageInfo'), btns=document.getElementById('dupPageBtns');
+  if (!dupFiltered.length) {
+    tbody.innerHTML=''; empty.style.display='block';
+    document.getElementById('dupEmptyTitle').textContent=dupData.length?'No matches':'No Data Yet';
+    info.textContent='No records'; btns.innerHTML=''; return;
+  }
+  empty.style.display='none';
+  const totalPg=Math.ceil(dupFiltered.length/DUP_PAGE_SZ);
+  if(dupPage>totalPg) dupPage=totalPg;
+  const start=(dupPage-1)*DUP_PAGE_SZ;
+  tbody.innerHTML=dupFiltered.slice(start,start+DUP_PAGE_SZ).map((r,i)=>{
+    const link=odooBaseUrl?`${odooBaseUrl.replace(/\/$/,'')}/web#id=${r.odoo_id}&model=account.move&view_type=form`:'#';
+    const sev=r.severity==='high'?'<span style="background:#fde7e9;color:#a4262c;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">🔴 Same Bill Ref</span>':'<span style="background:#fff4ce;color:#7a4f00;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">🟡 Same Amount</span>';
+    return `<tr style="${r.severity==='high'?'background:#fff8f8':''}">
+      <td class="sno">${start+i+1}</td>
+      <td>${sev}</td>
+      <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(r.vendor)}">${x(r.vendor)}</td>
+      <td style="white-space:nowrap;font-size:12px">${r.date}</td>
+      <td style="color:var(--primary);font-weight:600">${x(r.entry_no)}</td>
+      <td style="font-size:12px;color:var(--text2)">${x(r.bill_ref)||'—'}</td>
+      <td class="amt">₹${Math.round(r.amount).toLocaleString('en-IN')}</td>
+      <td style="font-size:11px;color:var(--danger)">${x(r.duplicate_of)}</td>
+      <td style="font-size:12px;color:var(--text2)">${x(r.journal)}</td>
+      <td style="text-align:center"><a class="icon-btn" href="${link}" target="_blank"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/><path d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg></a></td>
+    </tr>`;
+  }).join('');
+  info.textContent=`Showing ${start+1}–${Math.min(start+DUP_PAGE_SZ,dupFiltered.length)} of ${dupFiltered.length}`;
+  const pgs=[];if(totalPg<=7){for(let i=1;i<=totalPg;i++)pgs.push(i);}else{pgs.push(1);if(dupPage>3)pgs.push('…');for(let i=Math.max(2,dupPage-1);i<=Math.min(totalPg-1,dupPage+1);i++)pgs.push(i);if(dupPage<totalPg-2)pgs.push('…');pgs.push(totalPg);}
+  btns.innerHTML=`<button class="page-btn" onclick="dupGoPage(${dupPage-1})" ${dupPage===1?'disabled':''}>‹</button>`+pgs.map(p=>p==='…'?`<button class="page-btn" style="pointer-events:none">…</button>`:`<button class="page-btn ${p===dupPage?'active':''}" onclick="dupGoPage(${p})">${p}</button>`).join('')+`<button class="page-btn" onclick="dupGoPage(${dupPage+1})" ${dupPage===totalPg?'disabled':''}>›</button>`;
+}
+function dupGoPage(p){const t=Math.ceil(dupFiltered.length/DUP_PAGE_SZ);if(p<1||p>t)return;dupPage=p;renderDuplicates();document.getElementById('dupWrap').scrollTop=0;}
+function exportDuplicates(){
+  if(!dupFiltered.length){toast('No data','error');return;}
+  const cols=['S.No','Severity','Vendor','Date','Entry No.','Bill Reference','Amount','Duplicate Of','Journal','Odoo ID'];
+  const rows=dupFiltered.map((r,i)=>[i+1,r.severity,r.vendor,r.date,r.entry_no,r.bill_ref,r.amount,r.duplicate_of,r.journal,r.odoo_id]);
+  const csv=[cols,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'})),download:`duplicate_invoices_${new Date().toISOString().slice(0,10)}.csv`});
+  a.click(); toast(`Exported ${dupFiltered.length} records`,'success');
+}
+
+// ══════════════════════════════════════════════════════════════
+// BACKDATED ENTRY DETECTION
+// ══════════════════════════════════════════════════════════════
+let bdData = [], bdFiltered = [], bdPage = 1;
+const BD_PAGE_SZ = 100;
+
+function openBDSync() { const p=document.getElementById('bdSyncPanel'); p.style.display=p.style.display==='none'?'block':'none'; }
+function setBDFY(fy,btn) {
+  document.querySelectorAll('#bdSyncPanel .period-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const y=parseInt(fy.split('-')[0]);
+  document.getElementById('bdDateFrom').value=`${y}-04-01`;
+  document.getElementById('bdDateTo').value=`${y+1}-03-31`;
+}
+
+async function runBackdated() {
+  const dateFrom=document.getElementById('bdDateFrom').value;
+  const dateTo  =document.getElementById('bdDateTo').value;
+  const lagDays =parseInt(document.getElementById('bdLagDays').value)||15;
+  if (!dateFrom||!dateTo) { toast('Set a date range first','error'); return; }
+  setLoading(true);
+  try {
+    const r=await fetch(`${PROXY}/api/sync/backdated-entries`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dateFrom,dateTo,lagDays})});
+    const res=await r.json();
+    if(!res.ok) throw new Error(res.error);
+    bdData=res.backdated||[]; bdFiltered=[...bdData]; bdPage=1;
+    document.getElementById('bd-high').textContent  =res.cross_month||0;
+    document.getElementById('bd-medium').textContent=res.same_month||0;
+    document.getElementById('bdCards').style.display='block';
+    document.getElementById('bdTitle').textContent=`Backdated Entries — ${res.cross_month} cross-month, ${res.same_month} same-month`;
+    const badge=document.getElementById('cnt-backdated');
+    badge.textContent=res.total||0; badge.className=`nav-badge ${(res.total||0)>0?'':'zero'}`;
+    renderBackdated();
+    toast(res.cross_month>0?`🔴 ${res.cross_month} cross-month backdated entries!`:`✅ No cross-month backdated entries found`,res.cross_month>0?'error':'success');
+    document.getElementById('bdSyncPanel').style.display='none';
+  } catch(e){toast('Error: '+e.message,'error');}
+  finally{setLoading(false);}
+}
+
+function renderBackdated() {
+  const q     =(document.getElementById('bdSearch')?.value||'').toLowerCase();
+  const filter=document.getElementById('bdFilter')?.value||'all';
+  let base=filter==='high'?bdData.filter(d=>d.crosses_month):[...bdData];
+  bdFiltered=q?base.filter(d=>(d.vendor||'').toLowerCase().includes(q)||(d.entry_no||'').toLowerCase().includes(q)):base;
+  const tbody=document.getElementById('bdBody'),empty=document.getElementById('bdEmpty');
+  const info=document.getElementById('bdPageInfo'),btns=document.getElementById('bdPageBtns');
+  if(!bdFiltered.length){
+    tbody.innerHTML='';empty.style.display='block';
+    document.getElementById('bdEmptyTitle').textContent=bdData.length?'No matches':'No Data Yet';
+    info.textContent='No records';btns.innerHTML='';return;
+  }
+  empty.style.display='none';
+  const totalPg=Math.ceil(bdFiltered.length/BD_PAGE_SZ);
+  if(bdPage>totalPg) bdPage=totalPg;
+  const start=(bdPage-1)*BD_PAGE_SZ;
+  tbody.innerHTML=bdFiltered.slice(start,start+BD_PAGE_SZ).map((r,i)=>{
+    const link=odooBaseUrl?`${odooBaseUrl.replace(/\/$/,'')}/web#id=${r.odoo_id}&model=account.move&view_type=form`:'#';
+    const sev=r.crosses_month?'<span style="background:#fde7e9;color:#a4262c;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">🔴 Cross-Month</span>':'<span style="background:#fff4ce;color:#7a4f00;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">🟡 Same Month</span>';
+    return `<tr style="${r.crosses_month?'background:#fff8f8':''}">
+      <td class="sno">${start+i+1}</td>
+      <td>${sev}</td>
+      <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(r.vendor)}">${x(r.vendor)}</td>
+      <td style="white-space:nowrap;font-size:12px">${r.invoice_date}</td>
+      <td style="white-space:nowrap;font-size:12px;color:var(--danger)">${r.create_date}</td>
+      <td style="text-align:center;font-weight:700;color:${r.crosses_month?'var(--danger)':'var(--warning)'}">${r.lag_days}d</td>
+      <td style="color:var(--primary);font-weight:600">${x(r.entry_no)}</td>
+      <td style="font-size:12px;color:var(--text2)">${x(r.bill_ref)||'—'}</td>
+      <td class="amt">₹${Math.round(r.amount).toLocaleString('en-IN')}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(r.narration)}">${x(r.narration)||'—'}</td>
+      <td style="text-align:center"><a class="icon-btn" href="${link}" target="_blank"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/><path d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg></a></td>
+    </tr>`;
+  }).join('');
+  info.textContent=`Showing ${start+1}–${Math.min(start+BD_PAGE_SZ,bdFiltered.length)} of ${bdFiltered.length}`;
+  const pgs=[];if(totalPg<=7){for(let i=1;i<=totalPg;i++)pgs.push(i);}else{pgs.push(1);if(bdPage>3)pgs.push('…');for(let i=Math.max(2,bdPage-1);i<=Math.min(totalPg-1,bdPage+1);i++)pgs.push(i);if(bdPage<totalPg-2)pgs.push('…');pgs.push(totalPg);}
+  btns.innerHTML=`<button class="page-btn" onclick="bdGoPage(${bdPage-1})" ${bdPage===1?'disabled':''}>‹</button>`+pgs.map(p=>p==='…'?`<button class="page-btn" style="pointer-events:none">…</button>`:`<button class="page-btn ${p===bdPage?'active':''}" onclick="bdGoPage(${p})">${p}</button>`).join('')+`<button class="page-btn" onclick="bdGoPage(${bdPage+1})" ${bdPage===totalPg?'disabled':''}>›</button>`;
+}
+function bdGoPage(p){const t=Math.ceil(bdFiltered.length/BD_PAGE_SZ);if(p<1||p>t)return;bdPage=p;renderBackdated();document.getElementById('bdWrap').scrollTop=0;}
+function exportBackdated(){
+  if(!bdFiltered.length){toast('No data','error');return;}
+  const cols=['S.No','Severity','Vendor','Invoice Date','Entry Created','Lag (days)','Entry No.','Bill Reference','Amount','Type','Narration','Odoo ID'];
+  const rows=bdFiltered.map((r,i)=>[i+1,r.crosses_month?'Cross-Month':'Same Month',r.vendor,r.invoice_date,r.create_date,r.lag_days,r.entry_no,r.bill_ref,r.amount,r.type_label,r.narration,r.odoo_id]);
+  const csv=[cols,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'})),download:`backdated_entries_${new Date().toISOString().slice(0,10)}.csv`});
+  a.click(); toast(`Exported ${bdFiltered.length} records`,'success');
+}
+
+// ══════════════════════════════════════════════════════════════
+// WEEKEND & HOLIDAY ENTRIES MODULE
+// ══════════════════════════════════════════════════════════════
+let whData        = [];
+let whFiltered    = [];
+let whPage        = 1;
+let whSortCol     = 'date';
+let whSortDir     = 1;
+let whSyncedFYs   = new Set();
+const WH_PAGE_SZ  = 100;
+
+// ── Sync panel helpers ────────────────────────────────────────
+function openWHSync() {
+  const p = document.getElementById('whSyncPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function setWHFY(fy, btn) {
+  document.querySelectorAll('#whSyncPanel .period-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const y = parseInt(fy.split('-')[0]);
+  document.getElementById('whDateFrom').value = `${y}-04-01`;
+  document.getElementById('whDateTo').value   = `${y+1}-03-31`;
+}
+
+// ── Run fetch ─────────────────────────────────────────────────
+async function runWH() {
+  const dateFrom  = document.getElementById('whDateFrom').value;
+  const dateTo    = document.getElementById('whDateTo').value;
+  const typeMode  = document.getElementById('whEntryType').value;
+
+  if (!dateFrom || !dateTo) { toast('Set a date range first','error'); openWHSync(); return; }
+
+  const entryTypes = typeMode === 'bills'
+    ? ['in_invoice','in_refund']
+    : typeMode === 'journals'
+      ? ['entry']
+      : ['in_invoice','in_refund','entry','out_invoice','out_refund'];
+
+  setLoading(true);
+  try {
+    const r   = await fetch(`${PROXY}/api/sync/weekend-holiday-entries`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ dateFrom, dateTo, entryTypes })
+    });
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.error);
+
+    // Merge: remove entries in synced range, keep others
+    const preserved = whData.filter(r => r.date < dateFrom || r.date > dateTo);
+    whData     = [...preserved, ...(res.entries || [])];
+    whData.sort((a,b) => a.date.localeCompare(b.date));
+    whFiltered = [...whData];
+    whPage     = 1;
+
+    // Track synced FYs
+    let cur = new Date(dateFrom); const end = new Date(dateTo);
+    while (cur <= end) {
+      whSyncedFYs.add(dateToFY(cur.toISOString().split('T')[0]));
+      cur.setMonth(cur.getMonth() + 1);
+    }
+
+    // Update summary
+    const totalAmt = whData.reduce((s,r) => s+r.amount, 0);
+    const fmtAmt   = totalAmt >= 10000000
+      ? '₹' + (totalAmt/10000000).toFixed(2) + ' Cr'
+      : totalAmt >= 100000
+        ? '₹' + (totalAmt/100000).toFixed(2) + ' L'
+        : '₹' + Math.round(totalAmt).toLocaleString('en-IN');
+
+    const weekendCnt = whData.filter(r => r.is_weekend && !r.is_holiday).length;
+    const holidayCnt = whData.filter(r => r.is_holiday).length;
+
+    document.getElementById('wh-weekend').textContent = weekendCnt;
+    document.getElementById('wh-holiday').textContent = holidayCnt;
+    document.getElementById('wh-amount').textContent  = fmtAmt;
+    document.getElementById('whCards').style.display  = 'block';
+    document.getElementById('whTitle').textContent    =
+      `Weekend & Holiday Entries — ${weekendCnt} weekend, ${holidayCnt} holiday`;
+
+    const badge = document.getElementById('cnt-weekend');
+    badge.textContent = whData.length;
+    badge.className   = `nav-badge ${whData.length > 0 ? '' : 'zero'}`;
+
+    // Populate FY dropdown
+    populateViewFYFromSynced('whViewFY', whSyncedFYs, whData.map(r => r.date));
+    applyWHFYView();
+    document.getElementById('whSyncPanel').style.display = 'none';
+
+    // Save state
+    try {
+      localStorage.setItem('whData', JSON.stringify({ data:whData, syncedFYs:[...whSyncedFYs] }));
+    } catch(e){}
+
+    toast(whData.length > 0
+      ? `⚠ ${whData.length} entries posted on weekends/holidays`
+      : `✅ No entries found on weekends or holidays`,
+      whData.length > 0 ? 'error' : 'success');
+
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── FY view filter ────────────────────────────────────────────
+function applyWHFYView() {
+  const fy = document.getElementById('whViewFY')?.value || 'all';
+  const { from, to } = fyViewDates(fy);
+  const lbl = document.getElementById('whViewFYRange');
+  if (lbl) lbl.textContent = from ? `${from}  →  ${to}` : 'All synced data';
+  renderWH();
+}
+
+// ── Render table ──────────────────────────────────────────────
+function renderWH() {
+  const q      = (document.getElementById('whSearch')?.value || '').toLowerCase();
+  const filter = document.getElementById('whFilter')?.value || 'all';
+  const fy     = document.getElementById('whViewFY')?.value || 'all';
+  const { from: fyFrom, to: fyTo } = fyViewDates(fy);
+
+  let base = fyFrom ? whData.filter(r => r.date >= fyFrom && r.date <= fyTo) : [...whData];
+  if (filter === 'holiday') base = base.filter(r => r.is_holiday);
+  if (filter === 'weekend') base = base.filter(r => r.is_weekend && !r.is_holiday);
+
+  whFiltered = q
+    ? base.filter(r => ['vendor','entry_no','bill_ref','narration','holiday_name','journal']
+        .some(k => (r[k]||'').toLowerCase().includes(q)))
+    : base;
+
+  whFiltered.sort((a,b) => {
+    const va = a[whSortCol]??'', vb = b[whSortCol]??'';
+    return typeof va==='number' ? whSortDir*(va-vb) : whSortDir*String(va).localeCompare(String(vb));
+  });
+
+  const tbody = document.getElementById('whBody');
+  const empty = document.getElementById('whEmpty');
+  const info  = document.getElementById('whPageInfo');
+  const btns  = document.getElementById('whPageBtns');
+
+  if (!whFiltered.length) {
+    tbody.innerHTML = ''; empty.style.display = 'block';
+    document.getElementById('whEmptyTitle').textContent = whData.length ? 'No matches' : 'No Data Yet';
+    document.getElementById('whEmptyDesc').textContent  = whData.length
+      ? 'Try changing the filter.'
+      : 'Click Sync Settings → select a period → Fetch Now';
+    info.textContent = 'No records'; btns.innerHTML = ''; return;
+  }
+  empty.style.display = 'none';
+
+  const totalPg = Math.ceil(whFiltered.length / WH_PAGE_SZ);
+  if (whPage > totalPg) whPage = totalPg;
+  const start = (whPage-1) * WH_PAGE_SZ;
+
+  tbody.innerHTML = whFiltered.slice(start, start + WH_PAGE_SZ).map((r, i) => {
+    const link = odooBaseUrl
+      ? `${odooBaseUrl.replace(/\/$/,'')}/web#id=${r.odoo_id}&model=account.move&view_type=form`
+      : '#';
+
+    const typePill = r.is_holiday
+      ? `<span style="background:#fce4ec;color:#880e4f;border-radius:10px;padding:2px 9px;font-size:11px;font-weight:700">🎌 Holiday</span>`
+      : `<span style="background:#fff8e6;color:#e65100;border-radius:10px;padding:2px 9px;font-size:11px;font-weight:700">📅 Weekend</span>`;
+
+    const rowBg = r.is_holiday ? 'background:#fff8f8' : 'background:#fffdf0';
+
+    return `<tr style="${rowBg}">
+      <td class="sno">${start+i+1}</td>
+      <td>${typePill}</td>
+      <td style="white-space:nowrap;font-size:12px;font-weight:600">${r.date}</td>
+      <td style="font-size:12px;color:${r.is_weekend?'#e65100':'var(--text2)'};font-weight:${r.is_weekend?700:400}">${r.day_name}</td>
+      <td style="font-size:12px;color:#880e4f;font-weight:600">${x(r.holiday_name)||'—'}</td>
+      <td style="color:var(--primary);font-weight:600">${x(r.entry_no)}</td>
+      <td style="font-size:12px"><span class="badge badge-entry">${x(r.type_label)}</span></td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="${x(r.partner)}">${x(r.partner)||'—'}</td>
+      <td style="font-size:12px;color:var(--text2)">${x(r.journal)}</td>
+      <td style="font-size:12px;color:var(--text2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(r.bill_ref)}">${x(r.bill_ref)||'—'}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(r.narration)}">${x(r.narration)||'—'}</td>
+      <td class="amt">₹${Math.round(r.amount).toLocaleString('en-IN')}</td>
+      <td style="text-align:center">
+        <a class="icon-btn" href="${link}" target="_blank" title="Open in Odoo">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/><path d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg>
+        </a>
+      </td>
+    </tr>`;
+  }).join('');
+
+  info.textContent = `Showing ${start+1}–${Math.min(start+WH_PAGE_SZ, whFiltered.length)} of ${whFiltered.length} entries`;
+
+  // Pagination
+  const pgs = [];
+  if (totalPg <= 7) { for(let i=1;i<=totalPg;i++) pgs.push(i); }
+  else {
+    pgs.push(1);
+    if (whPage > 3) pgs.push('…');
+    for(let i=Math.max(2,whPage-1);i<=Math.min(totalPg-1,whPage+1);i++) pgs.push(i);
+    if (whPage < totalPg-2) pgs.push('…');
+    pgs.push(totalPg);
+  }
+  btns.innerHTML =
+    `<button class="page-btn" onclick="whGoPage(${whPage-1})" ${whPage===1?'disabled':''}>‹</button>` +
+    pgs.map(p => p==='…'
+      ? `<button class="page-btn" style="pointer-events:none">…</button>`
+      : `<button class="page-btn ${p===whPage?'active':''}" onclick="whGoPage(${p})">${p}</button>`
+    ).join('') +
+    `<button class="page-btn" onclick="whGoPage(${whPage+1})" ${whPage===totalPg?'disabled':''}>›</button>`;
+}
+
+function sortWH(col) {
+  if (whSortCol === col) whSortDir *= -1; else { whSortCol = col; whSortDir = 1; }
+  renderWH();
+}
+
+function whGoPage(p) {
+  const total = Math.ceil(whFiltered.length / WH_PAGE_SZ);
+  if (p < 1 || p > total) return;
+  whPage = p; renderWH();
+  document.getElementById('whWrap').scrollTop = 0;
+}
+
+// ── Export CSV ─────────────────────────────────────────────────
+function exportWH() {
+  if (!whFiltered.length) { toast('No data to export','error'); return; }
+  const cols = ['S.No','Type','Date','Day','Holiday','Entry No.','Entry Type',
+    'Vendor / Partner','Journal','Bill Reference','Narration','Amount (₹)','Odoo ID'];
+  const rows = whFiltered.map((r,i) => [i+1,
+    r.is_holiday ? 'Holiday' : 'Weekend',
+    r.date, r.day_name, r.holiday_name||'', r.entry_no, r.type_label,
+    r.partner, r.journal, r.bill_ref, r.narration, r.amount, r.odoo_id]);
+  const csv = [cols,...rows].map(row =>
+    row.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',')
+  ).join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'})),
+    download: `weekend_holiday_entries_${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+  toast(`Exported ${whFiltered.length} entries`, 'success');
+}
+
+// ── Restore state ──────────────────────────────────────────────
+function restoreWHState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('whData') || 'null');
+    if (!s?.data?.length) return;
+    whData     = s.data;
+    whFiltered = [...whData];
+    if (s.syncedFYs) s.syncedFYs.forEach(fy => whSyncedFYs.add(fy));
+
+    const weekendCnt = whData.filter(r => r.is_weekend && !r.is_holiday).length;
+    const holidayCnt = whData.filter(r => r.is_holiday).length;
+    document.getElementById('wh-weekend').textContent = weekendCnt;
+    document.getElementById('wh-holiday').textContent = holidayCnt;
+    document.getElementById('whCards').style.display  = 'block';
+
+    const badge = document.getElementById('cnt-weekend');
+    badge.textContent = whData.length;
+    badge.className   = `nav-badge ${whData.length > 0 ? '' : 'zero'}`;
+
+    populateViewFYFromSynced('whViewFY', whSyncedFYs, whData.map(r => r.date));
+    applyWHFYView();
+  } catch(e) {}
 }
 // Ctrl+R → run audit
 document.addEventListener('keydown', e => {

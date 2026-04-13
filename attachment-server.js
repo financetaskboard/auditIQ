@@ -272,6 +272,10 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
       { fields: ['move_id', 'account_id', 'debit', 'credit', 'name'], limit: 100000, context: { lang: 'en_IN', allowed_company_ids: [] } }
     );
 
+    const LINES_TRUNCATED = moveLines.length >= 100000;
+    if (LINES_TRUNCATED) {
+      console.warn(`⚠ Move lines hit limit (100,000) — data may be incomplete. Consider narrowing date range.`);
+    }
     if (moveLines.length === 0) {
       return res.json({ ok: true, total: 0, missing: 0, with_attachment: 0, data: [], accountsChecked: accountIds.length,
         message: `No posted entries found in ${dateFrom} → ${dateTo}` });
@@ -405,7 +409,11 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
       accounts_checked:  accountIds.length,
       accounts_excluded: excludedCount,
       data:              missing,
-      data_with_attachment: withAtt   // entries that already have attachments
+      data_with_attachment: withAtt,
+      truncated:         LINES_TRUNCATED,
+      truncation_warning: LINES_TRUNCATED
+        ? `⚠ Data may be incomplete — ${moveLines.length.toLocaleString()} lines fetched (limit hit). Split into smaller date ranges for full accuracy.`
+        : null
     });
 
   } catch (e) {
@@ -823,6 +831,294 @@ app.get('/api/journals', async (req, res) => {
   }
 });
 
+
+// ══════════════════════════════════════════════════════════════
+// DUPLICATE INVOICE DETECTION
+// ══════════════════════════════════════════════════════════════
+// Finds vendor bills with same (partner_id + ref) posted more than once.
+// Also flags same amount + same vendor within 7 days as suspicious.
+app.post('/api/sync/duplicate-invoices', async (req, res) => {
+  const s = loadSettings();
+  const { dateFrom, dateTo } = req.body;
+  if (!dateFrom || !dateTo) return res.status(400).json({ ok:false, error:'dateFrom and dateTo required' });
+
+  console.log('\n🔍 Duplicate Invoice Check | ' + dateFrom + ' → ' + dateTo);
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+
+    const bills = await odooCall(session, 'account.move', 'search_read',
+      [[['move_type','in',['in_invoice','in_refund']],['state','=','posted'],
+        ['invoice_date','>=',dateFrom],['invoice_date','<=',dateTo],
+        ['partner_id','!=',false]]],
+      { fields:['id','name','ref','invoice_date','partner_id','amount_total','journal_id'],
+        limit:50000, order:'invoice_date asc',
+        context:{ lang:'en_IN', allowed_company_ids:[] } }
+    );
+
+    const duplicates = [];
+
+    // ── Type A: Same vendor + same Bill Reference ─────────────────
+    const refMap = {}; // "pid|ref" → [bills]
+    bills.forEach(b => {
+      const ref = (b.ref || '').trim().toLowerCase();
+      if (!ref || ref === '/' || ref === '') return; // skip blank refs
+      const key = `${b.partner_id?.[0]}|${ref}`;
+      if (!refMap[key]) refMap[key] = [];
+      refMap[key].push(b);
+    });
+
+    Object.entries(refMap).forEach(([key, group]) => {
+      if (group.length < 2) return;
+      group.forEach((b, i) => {
+        duplicates.push({
+          type:        'Same Bill Reference',
+          duplicate_of: group.filter((_,j) => j !== i).map(x => x.name).join(', '),
+          odoo_id:     b.id,
+          entry_no:    b.name || '',
+          date:        b.invoice_date || '',
+          vendor:      b.partner_id?.[1] || '',
+          partner_id:  b.partner_id?.[0],
+          bill_ref:    b.ref || '',
+          amount:      Math.round(Math.abs(b.amount_total||0)*100)/100,
+          journal:     b.journal_id?.[1] || '',
+          severity:    'high'
+        });
+      });
+    });
+
+    // ── Type B: Same vendor + same amount within 7 days ──────────
+    // Group by vendor, sort by date, check consecutive pairs
+    const byVendor = {};
+    bills.forEach(b => {
+      const pid = b.partner_id?.[0]; if (!pid) return;
+      if (!byVendor[pid]) byVendor[pid] = [];
+      byVendor[pid].push(b);
+    });
+
+    Object.values(byVendor).forEach(vBills => {
+      vBills.sort((a,b) => a.invoice_date.localeCompare(b.invoice_date));
+      for (let i = 0; i < vBills.length; i++) {
+        for (let j = i+1; j < vBills.length; j++) {
+          const a = vBills[i], b = vBills[j];
+          const daysDiff = (new Date(b.invoice_date) - new Date(a.invoice_date)) / 86400000;
+          if (daysDiff > 7) break;
+          const amtA = Math.abs(a.amount_total||0);
+          const amtB = Math.abs(b.amount_total||0);
+          if (Math.abs(amtA - amtB) < 1) { // same amount ± ₹1
+            const refA = (a.ref||'').trim(), refB = (b.ref||'').trim();
+            if (refA && refB && refA.toLowerCase() === refB.toLowerCase()) continue; // already caught above
+            // Only add if not already flagged
+            const alreadyFlagged = duplicates.some(d => d.odoo_id === a.id || d.odoo_id === b.id);
+            if (!alreadyFlagged) {
+              [a, b].forEach(bill => {
+                duplicates.push({
+                  type:        'Same Amount (7-day window)',
+                  duplicate_of: [a,b].filter(x => x.id !== bill.id).map(x => x.name).join(', '),
+                  odoo_id:     bill.id,
+                  entry_no:    bill.name || '',
+                  date:        bill.invoice_date || '',
+                  vendor:      bill.partner_id?.[1] || '',
+                  partner_id:  bill.partner_id?.[0],
+                  bill_ref:    bill.ref || '',
+                  amount:      Math.round(Math.abs(bill.amount_total||0)*100)/100,
+                  journal:     bill.journal_id?.[1] || '',
+                  severity:    'medium'
+                });
+              });
+            }
+          }
+        }
+      }
+    });
+
+    duplicates.sort((a,b) => a.vendor.localeCompare(b.vendor) || a.date.localeCompare(b.date));
+    console.log('  ✅ ' + duplicates.length + ' potential duplicates found');
+    res.json({ ok:true, duplicates, total: duplicates.length,
+      high: duplicates.filter(d=>d.severity==='high').length,
+      medium: duplicates.filter(d=>d.severity==='medium').length });
+  } catch(e) {
+    console.error('❌ Duplicate check error:', e.message);
+    res.status(400).json({ ok:false, error:e.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// BACKDATED ENTRY DETECTION
+// ══════════════════════════════════════════════════════════════
+// Flags entries where invoice_date is in a prior month but
+// create_date (actual entry date) is significantly later.
+app.post('/api/sync/backdated-entries', async (req, res) => {
+  const s = loadSettings();
+  const { dateFrom, dateTo, lagDays = 15 } = req.body;
+  if (!dateFrom || !dateTo) return res.status(400).json({ ok:false, error:'dateFrom and dateTo required' });
+
+  console.log('\n📅 Backdated Entry Check | ' + dateFrom + ' → ' + dateTo + ' | lag>' + lagDays + 'd');
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+
+    const bills = await odooCall(session, 'account.move', 'search_read',
+      [[['move_type','in',['in_invoice','in_refund','entry']],['state','=','posted'],
+        ['invoice_date','>=',dateFrom],['invoice_date','<=',dateTo],
+        ['partner_id','!=',false]]],
+      { fields:['id','name','ref','invoice_date','create_date','write_date','partner_id','amount_total','journal_id','move_type','narration'],
+        limit:50000, order:'invoice_date asc',
+        context:{ lang:'en_IN', allowed_company_ids:[] } }
+    );
+
+    const backdated = [];
+    bills.forEach(b => {
+      const invoiceDate = new Date(b.invoice_date);
+      const createDate  = new Date((b.create_date||'').split(' ')[0]); // strip time
+      if (isNaN(invoiceDate) || isNaN(createDate)) return;
+
+      const lagDaysActual = Math.round((createDate - invoiceDate) / 86400000);
+      if (lagDaysActual < lagDays) return; // within acceptable range
+
+      // Check if it crosses a month boundary (more serious)
+      const crossesMonth = invoiceDate.getMonth() !== createDate.getMonth() ||
+                           invoiceDate.getFullYear() !== createDate.getFullYear();
+
+      const narr = (b.narration||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().substring(0,100);
+      const typeLabel = { entry:'Journal Entry', in_invoice:'Vendor Bill',
+        in_refund:'Vendor Credit', out_invoice:'Customer Invoice' }[b.move_type] || b.move_type;
+
+      backdated.push({
+        odoo_id:       b.id,
+        entry_no:      b.name || '',
+        invoice_date:  b.invoice_date || '',
+        create_date:   (b.create_date||'').split(' ')[0],
+        lag_days:      lagDaysActual,
+        crosses_month: crossesMonth,
+        severity:      crossesMonth ? 'high' : 'medium',
+        vendor:        b.partner_id?.[1] || '',
+        partner_id:    b.partner_id?.[0],
+        bill_ref:      (b.ref||'').trim(),
+        narration:     narr,
+        amount:        Math.round(Math.abs(b.amount_total||0)*100)/100,
+        journal:       b.journal_id?.[1] || '',
+        type_label:    typeLabel
+      });
+    });
+
+    backdated.sort((a,b) => b.lag_days - a.lag_days);
+    console.log('  ✅ ' + backdated.length + ' backdated entries found');
+    res.json({ ok:true, backdated, total:backdated.length,
+      cross_month: backdated.filter(d=>d.crosses_month).length,
+      same_month:  backdated.filter(d=>!d.crosses_month).length });
+  } catch(e) {
+    console.error('❌ Backdated check error:', e.message);
+    res.status(400).json({ ok:false, error:e.message });
+  }
+});
+
+
+// ══════════════════════════════════════════════════════════════
+// WEEKEND & HOLIDAY ENTRIES MODULE
+// ══════════════════════════════════════════════════════════════
+
+// Indian public holidays (fixed + major variable ones)
+const INDIA_HOLIDAYS = {
+  '2024-01-26':'Republic Day','2024-03-25':'Holi','2024-03-29':'Good Friday',
+  '2024-04-14':'Ambedkar Jayanti','2024-04-17':'Ram Navami','2024-04-21':'Mahavir Jayanti',
+  '2024-05-23':'Buddha Purnima','2024-06-17':'Eid ul-Adha','2024-07-17':'Muharram',
+  '2024-08-15':'Independence Day','2024-08-26':'Janmashtami','2024-10-02':'Gandhi Jayanti',
+  '2024-10-12':'Dussehra','2024-11-01':'Diwali','2024-11-15':'Guru Nanak Jayanti',
+  '2024-12-25':'Christmas',
+  '2025-01-26':'Republic Day','2025-03-14':'Holi','2025-04-10':'Ram Navami',
+  '2025-04-14':'Ambedkar Jayanti','2025-04-18':'Good Friday','2025-05-12':'Buddha Purnima',
+  '2025-06-07':'Eid ul-Adha','2025-07-06':'Muharram','2025-08-15':'Independence Day',
+  '2025-08-16':'Janmashtami','2025-10-02':'Gandhi Jayanti','2025-10-20':'Diwali',
+  '2025-11-05':'Guru Nanak Jayanti','2025-12-25':'Christmas',
+  '2026-01-26':'Republic Day','2026-03-04':'Maha Shivratri','2026-03-20':'Holi',
+  '2026-03-30':'Ram Navami','2026-04-02':'Good Friday','2026-04-14':'Ambedkar Jayanti',
+  '2026-04-19':'Mahavir Jayanti','2026-05-31':'Buddha Purnima',
+  '2026-08-15':'Independence Day','2026-09-04':'Janmashtami',
+  '2026-10-02':'Gandhi Jayanti','2026-11-08':'Diwali','2026-12-25':'Christmas'
+};
+
+function getEntryDayInfo(dateStr) {
+  if (!dateStr) return null;
+  const d   = new Date(dateStr);
+  const dow = d.getDay(); // 0=Sun, 6=Sat
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const holiday  = INDIA_HOLIDAYS[dateStr] || null;
+  const weekend  = dow === 0 || dow === 6;
+  if (!weekend && !holiday) return null;
+  return { day_name: dayNames[dow], is_weekend: weekend, is_holiday: !!holiday, holiday_name: holiday };
+}
+
+// POST /api/sync/weekend-holiday-entries
+// Fetches all posted journal entries in range, returns only those on weekends or holidays.
+app.post('/api/sync/weekend-holiday-entries', async (req, res) => {
+  const s = loadSettings();
+  const { dateFrom, dateTo, entryTypes = ['in_invoice','in_refund','entry'] } = req.body;
+  if (!dateFrom || !dateTo) return res.status(400).json({ ok:false, error:'dateFrom and dateTo required' });
+
+  console.log('\n📅 Weekend/Holiday Entries | ' + dateFrom + ' → ' + dateTo);
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+
+    // Fetch all posted entries in range
+    const typeDomain = entryTypes.length
+      ? [['move_type','in', entryTypes]]
+      : [['move_type','in',['in_invoice','in_refund','entry','out_invoice','out_refund']]];
+
+    const moves = await odooCall(session, 'account.move', 'search_read',
+      [[...typeDomain, ['state','=','posted'],
+        ['date','>=',dateFrom], ['date','<=',dateTo]]],
+      { fields:['id','name','date','ref','narration','partner_id','journal_id','move_type','amount_total'],
+        limit:50000, order:'date asc',
+        context:{ lang:'en_IN', allowed_company_ids:[] } }
+    );
+
+    const results = [];
+    moves.forEach(m => {
+      const dayInfo = getEntryDayInfo(m.date);
+      if (!dayInfo) return; // normal working day — skip
+
+      const narr = (m.narration||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().substring(0,120);
+      const typeLabel = {
+        entry:'Journal Entry', in_invoice:'Vendor Bill', in_refund:'Vendor Credit',
+        out_invoice:'Customer Invoice', out_refund:'Customer Credit'
+      }[m.move_type] || m.move_type;
+
+      results.push({
+        odoo_id:      m.id,
+        entry_no:     m.name || '',
+        date:         m.date || '',
+        day_name:     dayInfo.day_name,
+        is_weekend:   dayInfo.is_weekend,
+        is_holiday:   dayInfo.is_holiday,
+        holiday_name: dayInfo.holiday_name || '',
+        flag_type:    dayInfo.is_holiday ? 'Holiday' : 'Weekend',
+        type_label:   typeLabel,
+        partner:      m.partner_id?.[1] || '',
+        journal:      m.journal_id?.[1] || '',
+        bill_ref:     (m.ref||'').trim(),
+        narration:    narr,
+        amount:       Math.round(Math.abs(m.amount_total||0)*100)/100
+      });
+    });
+
+    results.sort((a,b) => a.date.localeCompare(b.date));
+
+    const weekendCount = results.filter(r => r.is_weekend && !r.is_holiday).length;
+    const holidayCount = results.filter(r => r.is_holiday).length;
+
+    console.log(`  ✅ ${results.length} entries on weekends/holidays (${weekendCount} weekend, ${holidayCount} holiday)`);
+    res.json({
+      ok: true,
+      entries: results,
+      total:   results.length,
+      weekend: weekendCount,
+      holiday: holidayCount
+    });
+  } catch(e) {
+    console.error('❌ Weekend/holiday check error:', e.message);
+    res.status(400).json({ ok:false, error:e.message });
+  }
+});
+
 // ── Serve Portal HTML ──────────────────────────────────────────
 const portalFile = path.join(__dirname, 'attachment-portal.html');
 app.get('/', (req, res) => {
@@ -1001,7 +1297,7 @@ app.post('/api/tds/check', async (req, res) => {
       [[['move_type','in',['in_invoice','in_refund']],['state','=','posted'],
         ['invoice_date','>=',dateFrom],['invoice_date','<=',dateTo],
         ['partner_id','!=',false]]],
-      { fields:['id','name','ref','invoice_date','partner_id','amount_total','move_type','company_type'],
+      { fields:['id','name','ref','invoice_date','partner_id','amount_total','move_type'],
         limit:50000, order:'invoice_date asc',
         context:{ lang:'en_IN', allowed_company_ids:[] } }
     );
@@ -1010,6 +1306,18 @@ app.post('/api/tds/check', async (req, res) => {
     const billIds  = bills.map(b => b.id);
     const billMap  = {};
     bills.forEach(b => { billMap[b.id] = b; });
+
+    // ── Step 2b: Fetch partner type (Individual vs Company) from res.partner ──
+    // company_type is on res.partner, NOT on account.move
+    const partnerIds = [...new Set(bills.map(b => b.partner_id?.[0]).filter(Boolean))];
+    const partnerTypeMap = {}; // partnerId → 'person' | 'company'
+    for (let i = 0; i < partnerIds.length; i += 1000) {
+      const partners = await odooCall(session, 'res.partner', 'search_read',
+        [[['id','in',partnerIds.slice(i,i+1000)]]],
+        { fields:['id','company_type'], limit:2000 }
+      );
+      partners.forEach(p => { partnerTypeMap[p.id] = p.company_type || 'company'; });
+    }
 
     // ── Step 3: Fetch all move lines for these bills ──────────────
     const allLines = [];
@@ -1061,7 +1369,7 @@ app.post('/api/tds/check', async (req, res) => {
     bills.forEach(b => {
       const pid = b.partner_id?.[0]; if (!pid) return;
       vendorNames[pid] = b.partner_id?.[1] || 'Unknown';
-      vendorType[pid]  = b.company_type || 'company';
+      vendorType[pid]  = partnerTypeMap[pid] || 'company';
       if (!billExpense[b.id]) return;
 
       Object.entries(billExpense[b.id]).forEach(([section, taxableAmt]) => {
