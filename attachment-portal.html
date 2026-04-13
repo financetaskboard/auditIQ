@@ -230,6 +230,7 @@
   /* ── Vendor Pattern Heatmap ── */
   .pattern-table { width: 100%; border-collapse: collapse; font-size: 12px; }
   .pattern-table thead { position: sticky; top: 0; z-index: 10; }
+  .pattern-table thead th { position: sticky; top: 0; background: #f3f2f1; }
   .pattern-table th { padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text2); border-bottom: 2px solid var(--border); background: #f3f2f1; white-space: nowrap; }
   .pattern-table th.sortable { cursor: pointer; user-select: none; }
   .pattern-table th.sortable:hover { background: var(--primary-light); color: var(--primary); }
@@ -243,8 +244,9 @@
   .pattern-table tr:hover td { background: #f8f7f6; }
   .pattern-table tr:hover td:first-child { background: #f0f0f0; }
   .cell-ok   { background: #dff6dd; color: #107c10; text-align: center; border-radius: 3px; padding: 3px 6px; font-weight: 600; font-size: 11px; cursor: default; }
-  .cell-gap  { background: #fde7e9; color: #a4262c; text-align: center; border-radius: 3px; padding: 3px 6px; font-weight: 700; font-size: 13px; cursor: default; }
-  .cell-none { background: #f3f2f1; color: #c8c6c4; text-align: center; border-radius: 3px; padding: 3px 6px; font-size: 11px; }
+  .cell-gap  { background: #fde7e9; color: #a4262c; text-align: center; border-radius: 3px; padding: 3px 6px; font-weight: 700; font-size: 12px; cursor: default; border: 1.5px solid #f1cdd0; }
+  .cell-none    { background: transparent; color: #d0cece; text-align: center; font-size: 11px; letter-spacing: 1px; }
+  .cell-pending { background: #fff8e6; color: #b8860b; text-align: center; border-radius: 3px; padding: 3px 6px; font-size: 11px; font-weight: 600; cursor: default; border: 1px dashed #f0c040; }
   .gap-badge { background: #fde7e9; color: #a4262c; border-radius: 10px; font-size: 10px; font-weight: 700; padding: 1px 7px; display: inline-block; }
   .gap-badge.zero { background: #dff6dd; color: #107c10; }
   .pattern-stat { font-size: 11px; color: var(--text2); }
@@ -672,17 +674,19 @@
           </div>
           <div class="info-card" style="padding:10px 16px; flex:2; min-width:240px; background:#fff4ce; border-color:#ffe89a;">
             <div class="info-card-label" style="color:#7a4f00">How to Read</div>
-            <div style="font-size:12px; color:#7a4f00; margin-top:4px;">
-              <span style="background:#dff6dd;color:#107c10;border-radius:3px;padding:1px 6px;font-weight:700;">✓ amt</span> = entry posted &nbsp;
-              <span style="background:#fde7e9;color:#a4262c;border-radius:3px;padding:1px 6px;font-weight:700;">✗</span> = no entry that month — <strong>possible gap</strong>
+            <div style="font-size:12px; color:#7a4f00; margin-top:4px; display:flex; flex-direction:column; gap:5px;">
+              <div><span style="background:#dff6dd;color:#107c10;border-radius:3px;padding:1px 8px;font-weight:700;">✓ 5.4L</span> &nbsp;Entry posted that month — amount shown</div>
+              <div><span style="background:#fde7e9;color:#a4262c;border-radius:3px;padding:1px 8px;font-weight:700;border:1.5px solid #f1cdd0;">⚠ Gap</span> &nbsp;<strong>Possible missing bill</strong> — vendor was active before &amp; after, but nothing this month</div>
+              <div><span style="background:#fff8e6;color:#b8860b;border-radius:3px;padding:1px 8px;font-weight:600;border:1px dashed #f0c040;">?</span> &nbsp;<strong>Check manually</strong> — vendor was active before, trailing month. May not be booked yet.</div>
+              <div><span style="color:#d0cece;padding:1px 8px;font-size:14px;letter-spacing:1px">·</span> &nbsp;Vendor not yet started — not a concern</div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Heatmap Table -->
-      <div style="flex:1; overflow:auto; padding:10px 16px 0;">
-        <div class="table-wrap" id="patternTableWrap">
+      <div style="flex:1; overflow:auto; padding:10px 16px 0; display:flex; flex-direction:column;">
+        <div class="table-wrap" id="patternTableWrap" style="overflow:auto; flex:1;">
           <table class="pattern-table" id="patternTable">
             <thead id="patternHead"></thead>
             <tbody id="patternBody"></tbody>
@@ -1945,8 +1949,10 @@ function renderPattern() {
         const hasAfter  = months.slice(months.indexOf(m)+1).some(mm => v.monthly[mm]);
         const hasBefore = months.slice(0, months.indexOf(m)).some(mm => v.monthly[mm]);
         if (hasBefore && hasAfter)
-          return `<td><div class="cell-gap" title="Missing entry — possible gap">✗</div></td>`;
-        return `<td><div class="cell-none">—</div></td>`;
+          return `<td><div class="cell-gap" title="⚠ Possible missing bill — vendor was active before and after this month">⚠ Gap</div></td>`;
+        if (hasBefore && !hasAfter)
+          return `<td><div class="cell-pending" title="? Trailing month — vendor was active before. Entry may not be booked yet or vendor stopped.">?</div></td>`;
+        return `<td><div class="cell-none" title="Vendor not yet active this month">·</div></td>`;
       }
       const amt = d.amount >= 100000
         ? (d.amount/100000).toFixed(1)+'L'
@@ -2198,8 +2204,10 @@ function renderPattern() {
         const hasAfter  = visibleMonths.slice(visibleMonths.indexOf(m)+1).some(mm => v.monthly[mm]);
         const hasBefore = visibleMonths.slice(0, visibleMonths.indexOf(m)).some(mm => v.monthly[mm]);
         if (hasBefore && hasAfter)
-          return `<td><div class="cell-gap" title="Missing entry — possible gap">✗</div></td>`;
-        return `<td><div class="cell-none">—</div></td>`;
+          return `<td><div class="cell-gap" title="⚠ Possible missing bill — vendor was active before and after this month">⚠ Gap</div></td>`;
+        if (hasBefore && !hasAfter)
+          return `<td><div class="cell-pending" title="? Trailing month — vendor was active before. Entry may not be booked yet or vendor stopped.">?</div></td>`;
+        return `<td><div class="cell-none" title="Vendor not yet active this month">·</div></td>`;
       }
       const amt = d.amount >= 100000 ? (d.amount/100000).toFixed(1)+'L'
                 : d.amount >= 1000   ? (d.amount/1000).toFixed(0)+'K'
