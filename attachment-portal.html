@@ -343,6 +343,12 @@
         <span class="nav-badge zero" id="cnt-deviation">0</span>
       </div>
 
+      <div class="nav-item" id="nav-tds" onclick="switchTab('tds')" title="TDS Compliance">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10.854 7.854a.5.5 0 0 0-.708-.708L7.5 9.793 6.354 8.646a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0l3-3z"/><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg>
+        <span class="nav-label">TDS Compliance</span>
+        <span class="nav-badge zero" id="cnt-tds">0</span>
+      </div>
+
       <div class="nav-section-label" style="margin-top:4px">Actions</div>
 
       <div class="nav-item" onclick="exportCSV()" title="Export CSV">
@@ -842,8 +848,161 @@
       </div>
     </div>
 
+
+    <!-- ── TDS COMPLIANCE PAGE ── -->
+    <div id="page-tds" class="page" style="padding:0; display:none; flex-direction:column;">
+
+      <div class="content-topbar">
+        <span class="content-topbar-title" id="tdsTitle">TDS Compliance Check</span>
+        <div class="content-topbar-actions">
+          <button class="topbar-btn" onclick="runTDSSetup()" id="btnTDSSetup">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.892 3.433-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.892-1.64-.901-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
+            Configure Mapping
+          </button>
+          <button class="topbar-btn primary" onclick="runTDSCheck()">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Run TDS Check
+          </button>
+          <div class="topbar-sep"></div>
+          <button class="topbar-btn primary" onclick="exportTDS()">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter / Sync Bar -->
+      <div class="filter-bar" style="background:#f8f7f6;border-bottom:2px solid var(--border);">
+        <div class="filter-group">
+          <label class="filter-label" style="color:var(--primary);font-weight:700">📅 Financial Year</label>
+          <select class="fl-select" id="tdsFY" style="width:135px;font-weight:600;border-color:var(--primary)" onchange="onTDSFYChange()">
+            <option value="2023-24">FY 2023-24</option>
+            <option value="2024-25">FY 2024-25</option>
+            <option value="2025-26" selected>FY 2025-26</option>
+            <option value="2026-27">FY 2026-27</option>
+          </select>
+        </div>
+        <span id="tdsFYRange" style="font-size:11px;color:var(--text3);background:var(--primary-light);padding:2px 10px;border-radius:10px">2025-04-01 → 2026-03-31</span>
+        <div class="filter-sep"></div>
+        <div class="filter-group">
+          <label class="filter-label">Section</label>
+          <select class="fl-select" id="tdsFilterSection" style="width:140px" onchange="renderTDS()">
+            <option value="all">All Sections</option>
+            <option value="194C">194C – Contractor</option>
+            <option value="194H">194H – Commission</option>
+            <option value="194I">194I – Rent</option>
+            <option value="194J">194J – Professional</option>
+            <option value="194A">194A – Interest</option>
+          </select>
+        </div>
+        <div style="margin-left:auto">
+          <input type="text" class="fl-input" id="tdsSearch" placeholder="🔍  Search vendor…" style="width:220px" oninput="renderTDS()" />
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div id="tdsCards" style="display:none;padding:8px 16px 0;flex-shrink:0;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div class="info-card hl-red" style="padding:10px 16px;flex:1;min-width:130px">
+            <div class="info-card-label">Non-Compliant Vendors</div>
+            <div class="info-card-value red" id="tc-violations">—</div>
+          </div>
+          <div class="info-card" style="padding:10px 16px;flex:1;min-width:130px">
+            <div class="info-card-label">Vendors Affected</div>
+            <div class="info-card-value orange" id="tc-vendors">—</div>
+          </div>
+          <div class="info-card hl-red" style="padding:10px 16px;flex:1;min-width:130px">
+            <div class="info-card-label">Total TDS Gap</div>
+            <div class="info-card-value red" id="tc-gap" style="font-size:18px">—</div>
+            <div class="info-card-sub">TDS not deducted</div>
+          </div>
+          <!-- Per-section pills -->
+          <div style="flex:3;min-width:300px;display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="tdsSectionPills"></div>
+        </div>
+      </div>
+
+      <!-- Violations Table -->
+      <div style="flex:1;overflow-y:auto;padding:10px 16px 0;">
+        <div class="table-wrap" id="tdsWrap">
+          <table class="data-table" id="tdsTable">
+            <thead>
+              <tr>
+                <th class="sno">#</th>
+                <th onclick="sortTDS('vendor')">Vendor</th>
+                <th onclick="sortTDS('section')">Section</th>
+                <th onclick="sortTDS('bill_count')" style="text-align:center">Bills</th>
+                <th onclick="sortTDS('total_taxable')" style="text-align:right">Total Taxable (₹)</th>
+                <th onclick="sortTDS('annual_limit')" style="text-align:right">Threshold (₹)</th>
+                <th onclick="sortTDS('expected_tds')" style="text-align:right;background:#fff4ce">Expected TDS (₹)</th>
+                <th onclick="sortTDS('actual_tds')" style="text-align:right;background:#dff6dd">Actual TDS (₹)</th>
+                <th onclick="sortTDS('tds_gap')" style="text-align:right;background:#fde7e9">Gap (₹)</th>
+                <th onclick="sortTDS('status')">Status</th>
+              </tr>
+            </thead>
+            <tbody id="tdsBody"></tbody>
+          </table>
+          <div id="tdsEmpty" class="empty-state" style="display:none">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10.854 7.854a.5.5 0 0 0-.708-.708L7.5 9.793 6.354 8.646a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0l3-3z"/><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg>
+            <h3 id="tdsEmptyTitle">No Data Yet</h3>
+            <p id="tdsEmptyDesc">Click <strong>Run TDS Check</strong> to analyse vendor bills for this FY.</p>
+          </div>
+        </div>
+      </div>
+      <div class="pagination">
+        <span id="tdsPageInfo">—</span>
+        <div class="page-btns" id="tdsPageBtns"></div>
+      </div>
+    </div>
+
   </div><!-- /content-panel -->
 </div><!-- /app-body -->
+
+<!-- ░░ TDS MAPPING MODAL ░░ -->
+<div class="overlay" id="tdsMappingOverlay" onclick="if(event.target===this)closeTDSMapping()">
+  <div class="modal" style="width:760px;max-width:96vw;">
+    <div class="modal-header">
+      <span class="modal-title">📋 TDS Section Mapping — Map account heads to TDS sections</span>
+      <button class="modal-close" onclick="closeTDSMapping()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px;">
+      <div class="alert alert-info" style="margin-bottom:12px;font-size:12px;padding:8px 12px;">
+        The app auto-detects TDS sections from your account names. Review and correct any wrong mappings. <strong>Unmapped accounts are ignored in TDS check.</strong>
+      </div>
+      <div id="tdsAlertBanner"></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+        <input type="text" class="fl-input" id="tdsAccSearch" placeholder="🔍 Filter accounts…" style="width:220px" oninput="filterTDSAccounts()" />
+        <select class="fl-select" id="tdsAccFilter" style="width:150px" onchange="filterTDSAccounts()">
+          <option value="all">All Accounts</option>
+          <option value="mapped">Mapped only</option>
+          <option value="unmapped">Unmapped only</option>
+        </select>
+        <span id="tdsAccCount" style="font-size:12px;color:var(--text2);margin-left:4px"></span>
+      </div>
+      <div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f3f2f1;position:sticky;top:0;z-index:2;">
+              <th style="padding:7px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);border-bottom:2px solid var(--border);">Account Code</th>
+              <th style="padding:7px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);border-bottom:2px solid var(--border);">Account Name</th>
+              <th style="padding:7px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);border-bottom:2px solid var(--border);width:200px;">TDS Section</th>
+            </tr>
+          </thead>
+          <tbody id="tdsMappingBody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;font-size:11px;color:var(--text2);">
+        Also specify your <strong>TDS Payable account codes</strong> (comma separated) — used to detect if TDS was deducted:
+        <br>
+        <input type="text" class="fl-input" id="tdsPayableAccounts" placeholder="e.g. 21001, 21002, 24001" style="width:100%;margin-top:6px;" />
+        <span style="font-size:11px;color:var(--text3);">Leave blank to auto-detect accounts with "TDS" in their name</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="topbar-btn" onclick="closeTDSMapping()">Cancel</button>
+      <button class="topbar-btn primary" onclick="saveTDSMapping()">Save &amp; Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- ░░ SETTINGS MODAL ░░ -->
 <div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
@@ -1074,6 +1233,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     restorePatternState(),
     restoreDeviationState()
   ]);
+  restoreTDSState();
+  onTDSFYChange();
 
   initFYViewLabels();
   pingProxy();
@@ -1130,7 +1291,7 @@ function switchTab(id) {
   document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const pg = document.getElementById('page-'+id);
-  if (pg) { pg.classList.add('active'); pg.style.display = ['missing','pattern','deviation'].includes(id) ? 'flex' : 'block'; }
+  if (pg) { pg.classList.add('active'); pg.style.display = ['missing','pattern','deviation','tds'].includes(id) ? 'flex' : 'block'; }
   const nv = document.getElementById('nav-'+id);
   if (nv) nv.classList.add('active');
 }
@@ -2571,6 +2732,337 @@ function clearDeviationData() {
   document.getElementById('deviationSyncPanel').style.display = 'none';
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// TDS COMPLIANCE
+// ══════════════════════════════════════════════════════════════
+let tdsData          = [];     // all violations
+let tdsFiltered      = [];     // after filter
+let tdsMapping       = {};     // { accountCode: section }
+let tdsPayable       = '';     // comma-separated TDS payable codes
+let tdsAllAccounts   = [];     // from map-accounts call
+let tdsSortCol       = 'tds_gap';
+let tdsSortDir       = -1;
+let tdsPage          = 1;
+const TDS_PAGE_SZ    = 100;
+
+const TDS_SECTION_LABELS = {
+  '194C': '194C – Contractor',
+  '194H': '194H – Commission',
+  '194I': '194I – Rent',
+  '194J': '194J – Professional',
+  '194A': '194A – Interest'
+};
+
+const TDS_SECTION_COLORS = {
+  '194C': '#deecf9',
+  '194H': '#fff4ce',
+  '194I': '#dff6dd',
+  '194J': '#f3e5f5',
+  '194A': '#fde7e9'
+};
+
+// ── FY helper ─────────────────────────────────────────────────
+function onTDSFYChange() {
+  const fy = document.getElementById('tdsFY').value;
+  const y  = parseInt(fy.split('-')[0]);
+  const from = `${y}-04-01`, to = `${y+1}-03-31`;
+  document.getElementById('tdsFYRange').textContent = `${from}  →  ${to}`;
+  document.getElementById('tdsDateFrom') && (document.getElementById('tdsDateFrom').value = from);
+  document.getElementById('tdsDateTo')   && (document.getElementById('tdsDateTo').value   = to);
+}
+
+// ── Step 1: Load account mapping ─────────────────────────────
+async function runTDSSetup() {
+  setLoading(true);
+  try {
+    const r   = await fetch(`${PROXY}/api/tds/map-accounts`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ overrides: tdsMapping })
+    });
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.error);
+
+    tdsAllAccounts = res.accounts;
+    // Apply saved overrides on top of auto-mapping
+    tdsAllAccounts.forEach(a => {
+      if (tdsMapping[a.code]) a.section = tdsMapping[a.code];
+    });
+
+    document.getElementById('tdsPayableAccounts').value = tdsPayable;
+    renderTDSMappingTable(tdsAllAccounts);
+    document.getElementById('tdsMappingOverlay').classList.add('open');
+    toast(`${res.mapped_count} accounts auto-mapped, ${res.unmapped_count} need manual mapping`, 'info');
+  } catch(e) {
+    toast('Error loading accounts: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function renderTDSMappingTable(accounts) {
+  const q      = (document.getElementById('tdsAccSearch')?.value || '').toLowerCase();
+  const filter = document.getElementById('tdsAccFilter')?.value || 'all';
+
+  let rows = accounts;
+  if (q) rows = rows.filter(a => (a.code+' '+a.name).toLowerCase().includes(q));
+  if (filter === 'mapped')   rows = rows.filter(a => a.section);
+  if (filter === 'unmapped') rows = rows.filter(a => !a.section);
+
+  document.getElementById('tdsAccCount').textContent = `${rows.length} of ${accounts.length} accounts`;
+
+  const options = `<option value="">— Not TDS applicable —</option>` +
+    Object.entries(TDS_SECTION_LABELS).map(([v,l]) =>
+      `<option value="${v}">${l}</option>`).join('');
+
+  document.getElementById('tdsMappingBody').innerHTML = rows.map(a => `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 10px;font-family:monospace;font-size:12px;color:var(--text2)">${a.code}</td>
+      <td style="padding:6px 10px;font-size:13px">${x(a.name)} ${a.auto ? '<span style="font-size:10px;background:#dff6dd;color:#107c10;border-radius:8px;padding:1px 6px;margin-left:4px">auto</span>' : ''}</td>
+      <td style="padding:6px 10px;">
+        <select class="fl-select" style="width:180px" data-code="${a.code}" onchange="onTDSMappingChange(this)">
+          ${options}
+        </select>
+      </td>
+    </tr>`).join('');
+
+  // Set current values
+  document.querySelectorAll('#tdsMappingBody select').forEach(sel => {
+    const code = sel.dataset.code;
+    const acc  = accounts.find(a => a.code === code);
+    sel.value  = acc?.section || '';
+  });
+}
+
+function filterTDSAccounts() {
+  renderTDSMappingTable(tdsAllAccounts);
+}
+
+function onTDSMappingChange(sel) {
+  const code = sel.dataset.code;
+  if (sel.value) {
+    tdsMapping[code] = sel.value;
+  } else {
+    delete tdsMapping[code];
+  }
+  // Update the account in tdsAllAccounts
+  const acc = tdsAllAccounts.find(a => a.code === code);
+  if (acc) acc.section = sel.value || null;
+}
+
+function saveTDSMapping() {
+  tdsPayable = document.getElementById('tdsPayableAccounts').value.trim();
+  // Persist to localStorage
+  try {
+    localStorage.setItem('tdsMapping',  JSON.stringify(tdsMapping));
+    localStorage.setItem('tdsPayable', tdsPayable);
+  } catch(e){}
+  closeTDSMapping();
+  toast(`TDS mapping saved — ${Object.keys(tdsMapping).length} accounts mapped`, 'success');
+}
+
+function closeTDSMapping() {
+  document.getElementById('tdsMappingOverlay').classList.remove('open');
+}
+
+// ── Step 2: Run TDS check ────────────────────────────────────
+async function runTDSCheck() {
+  if (!Object.keys(tdsMapping).length) {
+    toast('Set up account mapping first — click Configure Mapping', 'error');
+    runTDSSetup();
+    return;
+  }
+
+  const fy = document.getElementById('tdsFY').value;
+  const y  = parseInt(fy.split('-')[0]);
+  const dateFrom = `${y}-04-01`, dateTo = `${y+1}-03-31`;
+  const tdsAccounts = tdsPayable
+    ? tdsPayable.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+
+  setLoading(true);
+  try {
+    const r = await fetch(`${PROXY}/api/tds/check`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ dateFrom, dateTo, accountMapping: tdsMapping, tdsAccounts })
+    });
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.error);
+
+    tdsData     = res.violations || [];
+    tdsFiltered = [...tdsData];
+    tdsPage     = 1;
+
+    // Save
+    try {
+      localStorage.setItem('tdsData', JSON.stringify({ data:tdsData, fy, summary:res.summary }));
+    } catch(e){}
+
+    // Update summary cards
+    const gap = res.total_tds_gap || 0;
+    const fmtGap = gap >= 100000
+      ? '₹' + (gap/100000).toFixed(2) + ' L'
+      : '₹' + gap.toLocaleString('en-IN',{maximumFractionDigits:0});
+    document.getElementById('tc-violations').textContent = res.total_non_compliant || 0;
+    document.getElementById('tc-vendors').textContent    = res.vendors_affected || 0;
+    document.getElementById('tc-gap').textContent        = fmtGap;
+    document.getElementById('tdsCards').style.display    = 'block';
+    document.getElementById('tdsTitle').textContent      =
+      `TDS Compliance — ${res.total_non_compliant} non-compliant of ${res.total_above_threshold} vendors above threshold (${fy})`;
+
+    // Section pills
+    const pills = Object.entries(res.summary || {}).map(([sec, s]) =>
+      s.vendors_above_threshold > 0
+        ? `<span style="background:${TDS_SECTION_COLORS[sec]||'#f3f2f1'};border-radius:10px;padding:3px 10px;font-size:12px;font-weight:600">${sec}: ${s.vendors_non_compliant}/${s.vendors_above_threshold} non-compliant</span>`
+        : ''
+    ).filter(Boolean).join('');
+    document.getElementById('tdsSectionPills').innerHTML = pills;
+
+    const badge = document.getElementById('cnt-tds');
+    badge.textContent = res.total_violations || 0;
+    badge.className   = `nav-badge ${(res.total_violations||0)>0?'':'zero'}`;
+
+    renderTDS();
+    toast(res.total_non_compliant > 0
+      ? `⚠ ${res.total_non_compliant} vendors non-compliant — ₹${fmtGap} TDS gap (${res.total_above_threshold} vendors above threshold)`
+      : `✅ All ${res.total_above_threshold} vendors above threshold are TDS compliant for ${fy}`,
+      res.total_non_compliant > 0 ? 'error' : 'success');
+
+  } catch(e) {
+    toast('TDS check failed: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Render violations table ───────────────────────────────────
+function renderTDS() {
+  const q       = (document.getElementById('tdsSearch')?.value || '').toLowerCase();
+  const section = document.getElementById('tdsFilterSection')?.value || 'all';
+
+  let base = section === 'all' ? [...tdsData] : tdsData.filter(r => r.section === section);
+  tdsFiltered = q
+    ? base.filter(r => (r.vendor||'').toLowerCase().includes(q) || (r.entry_no||'').toLowerCase().includes(q))
+    : base;
+
+  tdsFiltered.sort((a,b) => {
+    const va = a[tdsSortCol]??'', vb = b[tdsSortCol]??'';
+    return typeof va === 'number' ? tdsSortDir*(va-vb) : tdsSortDir*String(va).localeCompare(String(vb));
+  });
+
+  const tbody = document.getElementById('tdsBody');
+  const empty = document.getElementById('tdsEmpty');
+  const info  = document.getElementById('tdsPageInfo');
+  const btns  = document.getElementById('tdsPageBtns');
+
+  if (!tdsFiltered.length) {
+    tbody.innerHTML=''; empty.style.display='block';
+    document.getElementById('tdsEmptyTitle').textContent = tdsData.length ? 'No matches' : 'No Data Yet';
+    document.getElementById('tdsEmptyDesc').textContent  = tdsData.length ? 'Try changing the section filter.' : 'Click Run TDS Check to analyse.';
+    info.textContent='No records'; btns.innerHTML=''; return;
+  }
+  empty.style.display='none';
+
+  const totalPg = Math.ceil(tdsFiltered.length/TDS_PAGE_SZ);
+  if (tdsPage > totalPg) tdsPage = totalPg;
+  const start = (tdsPage-1)*TDS_PAGE_SZ;
+  const rows  = tdsFiltered.slice(start, start+TDS_PAGE_SZ);
+
+  const fmt = n => Math.round(n).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0});
+
+  tbody.innerHTML = rows.map((r,i) => {
+    const sectionColor = TDS_SECTION_COLORS[r.section] || '#f3f2f1';
+    const statusStyle  = r.status === 'Compliant'
+      ? 'background:#dff6dd;color:#107c10'
+      : r.status === 'No TDS Deducted'
+        ? 'background:#fde7e9;color:#a4262c'
+        : 'background:#fff4ce;color:#7a4f00';
+    return `<tr style="${r.status !== 'Compliant' ? 'background:#fffaf8' : ''}">
+      <td class="sno">${start+i+1}</td>
+      <td style="font-weight:600;font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(r.vendor)}">${x(r.vendor)}</td>
+      <td>
+        <span style="background:${sectionColor};border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap">${r.section} @ ${r.rate}%</span>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">${x(r.section_name)}</div>
+      </td>
+      <td style="text-align:center;font-size:12px;color:var(--text2)">${r.bill_count}</td>
+      <td class="amt" style="font-weight:600">₹${fmt(r.total_taxable)}</td>
+      <td class="amt" style="color:var(--text2)">₹${fmt(r.annual_limit)}</td>
+      <td class="amt" style="background:#fff8e6;font-weight:600">₹${fmt(r.expected_tds)}</td>
+      <td class="amt" style="background:#f0faf0;color:${r.actual_tds>0?'var(--success)':'var(--text3)'}">₹${fmt(r.actual_tds)}</td>
+      <td class="amt" style="background:#fff0f0;color:${r.tds_gap>0?'var(--danger)':'var(--text3)'};font-weight:${r.tds_gap>0?700:400}">
+        ${r.tds_gap > 0 ? '₹'+fmt(r.tds_gap) : r.excess_tds > 0 ? '<span style="color:var(--success)">Excess ₹'+fmt(r.excess_tds)+'</span>' : '—'}
+      </td>
+      <td><span style="border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700;${statusStyle}">${r.status}</span></td>
+    </tr>`;
+  }).join('');
+
+  info.textContent = `Showing ${start+1}–${Math.min(start+TDS_PAGE_SZ,tdsFiltered.length)} of ${tdsFiltered.length} violations`;
+
+  // Pagination
+  const pgs=[];
+  if(totalPg<=7){for(let i=1;i<=totalPg;i++)pgs.push(i);}
+  else{pgs.push(1);if(tdsPage>3)pgs.push('…');for(let i=Math.max(2,tdsPage-1);i<=Math.min(totalPg-1,tdsPage+1);i++)pgs.push(i);if(tdsPage<totalPg-2)pgs.push('…');pgs.push(totalPg);}
+  btns.innerHTML=`<button class="page-btn" onclick="tdsGoPage(${tdsPage-1})" ${tdsPage===1?'disabled':''}>‹</button>`
+    +pgs.map(p=>p==='…'?`<button class="page-btn" style="pointer-events:none">…</button>`
+      :`<button class="page-btn ${p===tdsPage?'active':''}" onclick="tdsGoPage(${p})">${p}</button>`).join('')
+    +`<button class="page-btn" onclick="tdsGoPage(${tdsPage+1})" ${tdsPage===totalPg?'disabled':''}>›</button>`;
+}
+
+function sortTDS(col) {
+  if (tdsSortCol===col) tdsSortDir*=-1; else { tdsSortCol=col; tdsSortDir=-1; }
+  tdsPage=1; renderTDS();
+}
+
+function tdsGoPage(p) {
+  const total = Math.ceil(tdsFiltered.length/TDS_PAGE_SZ);
+  if(p<1||p>total) return;
+  tdsPage=p; renderTDS();
+  document.getElementById('tdsWrap').scrollTop=0;
+}
+
+function exportTDS() {
+  if (!tdsFiltered.length) { toast('No data to export','error'); return; }
+  const cols = ['S.No','Vendor','Section','Section Name','Rate %','No. of Bills',
+    'Total Taxable Value','Annual Threshold','Expected TDS','Actual TDS Deducted','TDS Gap','Status'];
+  const rows = tdsFiltered.map((r,i) => [i+1, r.vendor, r.section, r.section_name, r.rate+'%',
+    r.bill_count, r.total_taxable, r.annual_limit,
+    r.expected_tds, r.actual_tds, r.tds_gap, r.status]);
+  const csv = [cols,...rows].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'),{
+    href: URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'})),
+    download: `tds_violations_${document.getElementById('tdsFY').value}_${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+  toast(`Exported ${tdsFiltered.length} TDS violations`,'success');
+}
+
+// ── Restore TDS state ─────────────────────────────────────────
+function restoreTDSState() {
+  try {
+    // Load mapping
+    const m = localStorage.getItem('tdsMapping');
+    if (m) tdsMapping = JSON.parse(m);
+    const p = localStorage.getItem('tdsPayable');
+    if (p) tdsPayable = p;
+    // Load data
+    const d = localStorage.getItem('tdsData');
+    if (!d) return;
+    const s = JSON.parse(d);
+    tdsData     = s.data || [];
+    tdsFiltered = [...tdsData];
+    if (!tdsData.length) return;
+
+    const badge = document.getElementById('cnt-tds');
+    badge.textContent = tdsData.length;
+    badge.className   = `nav-badge ${tdsData.length>0?'':'zero'}`;
+    document.getElementById('tc-violations').textContent = tdsData.length;
+    document.getElementById('tc-vendors').textContent    = new Set(tdsData.map(r=>r.partner_id)).size;
+    document.getElementById('tdsCards').style.display    = 'block';
+    if (s.fy) document.getElementById('tdsFY').value = s.fy;
+    onTDSFYChange();
+    renderTDS();
+  } catch(e){}
+}
 // Ctrl+R → run audit
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey||e.metaKey) && e.key==='r') { e.preventDefault(); runAudit(); }

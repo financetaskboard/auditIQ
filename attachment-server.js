@@ -855,3 +855,332 @@ app.listen(PORT, () => {
     else       console.log(`  ⚠  No settings — open http://localhost:${PORT} → Settings\n`);
   }
 });
+
+// ══════════════════════════════════════════════════════════════
+// TDS COMPLIANCE MODULE
+// ══════════════════════════════════════════════════════════════
+
+// ── TDS Section rules ─────────────────────────────────────────
+const TDS_SECTIONS = {
+  '194C': {
+    name: 'Payment to Contractors',
+    rate_individual: 1, rate_company: 2,
+    single_limit: 30000, annual_limit: 100000,
+    keywords: ['contract','labour','manpower','work','fabricat','construct','transport','cargo','logistic','courier','freight','dispatch','housekeep','security','guard','maintenance','facility','civil','architect','interior','printing','advertis','catering','event','exhibit']
+  },
+  '194H': {
+    name: 'Commission or Brokerage',
+    rate_individual: 5, rate_company: 5,
+    single_limit: 20000, annual_limit: 20000,
+    keywords: ['commission','brokerage','broker','agent','referral','introduc']
+  },
+  '194I': {
+    name: 'Rent',
+    rate_individual: 10, rate_company: 10,
+    single_limit: 50000, annual_limit: 240000,
+    keywords: ['rent','lease','hire','coworking','co-working','office space','warehouse','storage']
+  },
+  '194J': {
+    name: 'Professional / Technical Services',
+    rate_individual: 10, rate_company: 10,
+    single_limit: 50000, annual_limit: 50000,
+    keywords: ['professional','consultant','advisory','legal','audit','accountan','chartered','lawyer','advocate','technical','software','saas','cloud','hosting','licence','license','subscription','training','coaching','expert','valuation','architect','design','it service','technology','develop','engineer']
+  },
+  '194A': {
+    name: 'Interest (other than securities)',
+    rate_individual: 10, rate_company: 10,
+    single_limit: 40000, annual_limit: 40000,
+    keywords: ['interest','loan interest','finance charge','delayed payment']
+  }
+};
+
+// Auto-map account name → TDS section using keyword matching
+function inferTDSSection(accountName, accountCode) {
+  const text = (accountName + ' ' + accountCode).toLowerCase();
+  for (const [section, cfg] of Object.entries(TDS_SECTIONS)) {
+    if (cfg.keywords.some(kw => text.includes(kw))) return section;
+  }
+  return null;
+}
+
+// ── GET /api/tds/sections — return TDS section rules ─────────
+app.get('/api/tds/sections', (req, res) => {
+  res.json({ ok: true, sections: TDS_SECTIONS });
+});
+
+// ── POST /api/tds/map-accounts ───────────────────────────────
+// Fetches all expense accounts and auto-maps them to TDS sections.
+// Returns suggested mapping for user to review/override.
+app.post('/api/tds/map-accounts', async (req, res) => {
+  const s = loadSettings();
+  const { overrides = {} } = req.body; // { "accountCode": "194J" } user overrides
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+    const expenseTypes = ['expense','expense_direct_cost','expense_depreciation'];
+    const accounts = await odooCall(session, 'account.account', 'search_read',
+      [[['account_type','in',expenseTypes],['deprecated','=',false]]],
+      { fields: ['id','code','name'], limit: 2000, order: 'code asc' }
+    );
+
+    const mapped = accounts.map(a => {
+      const code    = (a.code||'').trim();
+      const inferred = overrides[code] || inferTDSSection(a.name, code);
+      return {
+        id:       a.id,
+        code,
+        name:     a.name,
+        section:  inferred || null,
+        auto:     !overrides[code] && !!inferred,
+        override: !!overrides[code]
+      };
+    });
+
+    const withSection    = mapped.filter(a => a.section);
+    const withoutSection = mapped.filter(a => !a.section);
+    console.log(`✅ TDS map: ${withSection.length} accounts mapped, ${withoutSection.length} unmapped`);
+    res.json({ ok: true, accounts: mapped, mapped_count: withSection.length, unmapped_count: withoutSection.length });
+  } catch(e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+// ── POST /api/tds/check ──────────────────────────────────────
+// Main TDS compliance check.
+// Body: { dateFrom, dateTo, accountMapping: { "410065": "194J", ... }, tdsAccounts: ["21001","21002"] }
+app.post('/api/tds/check', async (req, res) => {
+  const s = loadSettings();
+  const { dateFrom, dateTo, accountMapping = {}, tdsAccounts = [] } = req.body;
+  if (!dateFrom || !dateTo) return res.status(400).json({ ok:false, error:'dateFrom and dateTo required' });
+  if (!Object.keys(accountMapping).length) return res.status(400).json({ ok:false, error:'accountMapping is required — run /api/tds/map-accounts first' });
+
+  console.log(`\n📋 TDS Check | ${dateFrom} → ${dateTo}`);
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+
+    // ── Step 1: Resolve account IDs for mapped expense accounts ──
+    const mappedCodes = Object.keys(accountMapping);
+    const allAccounts = await odooCall(session,'account.account','search_read',
+      [[['deprecated','=',false]]],
+      { fields:['id','code','name','account_type'], limit:5000 }
+    );
+
+    const codeToAccount = {};
+    allAccounts.forEach(a => { codeToAccount[(a.code||'').trim()] = a; });
+
+    // Build accountId → section map
+    const accountIdToSection = {};
+    const accountIdToCode    = {};
+    mappedCodes.forEach(code => {
+      const acc = codeToAccount[code];
+      if (acc) {
+        accountIdToSection[acc.id] = accountMapping[code];
+        accountIdToCode[acc.id]    = code;
+      }
+    });
+
+    // TDS payable account IDs — auto-detect if not provided
+    let tdsAccountIds = [];
+    if (tdsAccounts.length) {
+      tdsAccounts.forEach(code => {
+        const acc = codeToAccount[code];
+        if (acc) tdsAccountIds.push(acc.id);
+      });
+    } else {
+      // Auto-detect: accounts with "TDS" or "Tax Deducted" in name
+      tdsAccountIds = allAccounts
+        .filter(a => /tds|tax deducted/i.test(a.name))
+        .map(a => a.id);
+      console.log(`  Auto-detected ${tdsAccountIds.length} TDS accounts:`, tdsAccountIds);
+    }
+
+    const expenseAccountIds = Object.keys(accountIdToSection).map(Number);
+    if (!expenseAccountIds.length) return res.json({ ok:true, violations:[], summary:{} });
+
+    // ── Step 2: Fetch all posted vendor bills in date range ───────
+    const bills = await odooCall(session,'account.move','search_read',
+      [[['move_type','in',['in_invoice','in_refund']],['state','=','posted'],
+        ['invoice_date','>=',dateFrom],['invoice_date','<=',dateTo],
+        ['partner_id','!=',false]]],
+      { fields:['id','name','ref','invoice_date','partner_id','amount_total','move_type','company_type'],
+        limit:50000, order:'invoice_date asc',
+        context:{ lang:'en_IN', allowed_company_ids:[] } }
+    );
+    if (!bills.length) return res.json({ ok:true, violations:[], vendors_checked:0, summary:{} });
+
+    const billIds  = bills.map(b => b.id);
+    const billMap  = {};
+    bills.forEach(b => { billMap[b.id] = b; });
+
+    // ── Step 3: Fetch all move lines for these bills ──────────────
+    const allLines = [];
+    for (let i = 0; i < billIds.length; i += 2000) {
+      const lines = await odooCall(session,'account.move.line','search_read',
+        [[['move_id','in',billIds.slice(i,i+2000)]]],
+        { fields:['move_id','account_id','debit','credit','partner_id'], limit:200000 }
+      );
+      allLines.push(...lines);
+    }
+
+    // ── Step 4: Per bill → expense sections used + TDS found ──────
+    const billExpense = {}; // bill_id → { sectionCode → amount }
+    const billHasTDS  = {}; // bill_id → total TDS amount deducted
+    const billTDSAccounts = {}; // bill_id → [tds account names]
+
+    allLines.forEach(l => {
+      const bid = l.move_id?.[0];
+      const aid = l.account_id?.[0];
+      if (!bid || !aid) return;
+
+      const section = accountIdToSection[aid];
+      if (section) {
+        // Expense line
+        const amt = Math.abs((l.debit||0) - (l.credit||0));
+        if (!billExpense[bid]) billExpense[bid] = {};
+        billExpense[bid][section] = (billExpense[bid][section] || 0) + amt;
+      }
+
+      if (tdsAccountIds.includes(aid)) {
+        // TDS line (credit entry on TDS payable)
+        const tdsAmt = Math.abs((l.debit||0) - (l.credit||0));
+        billHasTDS[bid]  = (billHasTDS[bid] || 0) + tdsAmt;
+        if (!billTDSAccounts[bid]) billTDSAccounts[bid] = [];
+        const accName = l.account_id?.[1] || String(aid);
+        if (!billTDSAccounts[bid].includes(accName)) billTDSAccounts[bid].push(accName);
+      }
+    });
+
+    // ── Step 5: Consolidate per vendor per section ───────────────
+    // ONE row per vendor per section for the full FY:
+    //   total_taxable  = sum of all bill amounts hitting that expense account
+    //   total_tds      = sum of ALL TDS deducted across ALL bills for that vendor
+    //                    (TDS on a vendor is usually in the same JE regardless of which bill)
+    const vendorAnnual = {};
+    const vendorNames  = {};
+    const vendorType   = {};
+
+    bills.forEach(b => {
+      const pid = b.partner_id?.[0]; if (!pid) return;
+      vendorNames[pid] = b.partner_id?.[1] || 'Unknown';
+      vendorType[pid]  = b.company_type || 'company';
+      if (!billExpense[b.id]) return;
+
+      Object.entries(billExpense[b.id]).forEach(([section, taxableAmt]) => {
+        if (!vendorAnnual[pid]) vendorAnnual[pid] = {};
+        if (!vendorAnnual[pid][section]) {
+          vendorAnnual[pid][section] = {
+            total_taxable: 0,   // sum of taxable values from expense lines
+            total_tds:     0,   // sum of TDS actually deducted across all bills
+            bill_count:    0,
+            bills:         []   // for drill-down reference
+          };
+        }
+        vendorAnnual[pid][section].total_taxable += taxableAmt;
+        vendorAnnual[pid][section].bill_count++;
+        vendorAnnual[pid][section].bills.push({
+          odoo_id:  b.id,
+          entry_no: b.name || '',
+          date:     b.invoice_date || '',
+          amount:   Math.round(taxableAmt * 100) / 100,
+          tds:      Math.round((billHasTDS[b.id] || 0) * 100) / 100
+        });
+      });
+
+      // Accumulate TDS deducted against this vendor (for their primary section)
+      // We credit TDS to the section with the highest taxable value for this vendor
+      if (billHasTDS[b.id] && billExpense[b.id]) {
+        // Find the dominant section for this bill
+        const entries = Object.entries(billExpense[b.id]);
+        const domSection = entries.reduce((a,b) => b[1]>a[1] ? b : a, entries[0])?.[0];
+        if (domSection && vendorAnnual[pid]?.[domSection]) {
+          vendorAnnual[pid][domSection].total_tds += billHasTDS[b.id];
+        }
+      }
+    });
+
+    // ── Step 6: Consolidated violations — ONE row per vendor per section ──
+    // Logic:
+    //   If total_taxable > threshold → TDS was applicable for the full year
+    //   Expected TDS = total_taxable × rate
+    //   Actual TDS   = total_tds deducted across all bills
+    //   Gap          = Expected − Actual  (positive = shortfall)
+    const violations = [];
+
+    Object.entries(vendorAnnual).forEach(([pid, sections]) => {
+      Object.entries(sections).forEach(([section, data]) => {
+        const cfg = TDS_SECTIONS[section];
+        if (!cfg) return;
+
+        const taxable      = Math.round(data.total_taxable * 100) / 100;
+        const actualTDS    = Math.round(data.total_tds     * 100) / 100;
+        const isIndividual = vendorType[pid] === 'person';
+        const rate         = isIndividual ? cfg.rate_individual : cfg.rate_company;
+
+        // TDS applicable only if total taxable crosses the annual threshold
+        if (taxable <= cfg.annual_limit) return;  // below threshold — no TDS required
+
+        const expectedTDS = Math.round(taxable * rate / 100 * 100) / 100;
+        const gap         = Math.round((expectedTDS - actualTDS) * 100) / 100;
+
+        // Show all vendors where threshold crossed — gap = 0 means fully compliant
+        violations.push({
+          vendor:        vendorNames[pid] || '',
+          partner_id:    Number(pid),
+          section,
+          section_name:  cfg.name,
+          rate,
+          bill_count:    data.bill_count,
+          total_taxable: taxable,
+          annual_limit:  cfg.annual_limit,
+          expected_tds:  expectedTDS,
+          actual_tds:    actualTDS,
+          tds_gap:       Math.max(0, gap),   // 0 if fully or over-deducted
+          status:        gap <= 0 ? 'Compliant'
+                       : actualTDS === 0 ? 'No TDS Deducted'
+                       : 'Short Deduction',
+          excess_tds:    gap < 0 ? Math.abs(gap) : 0,   // over-deducted (excess)
+          // Bill-level drill-down (first 10)
+          sample_bills:  data.bills.slice(0, 10)
+        });
+      });
+    });
+
+    // Sort: non-compliant first, then by gap descending
+    violations.sort((a,b) => {
+      const statusOrder = { 'No TDS Deducted':0, 'Short Deduction':1, 'Compliant':2 };
+      const so = (statusOrder[a.status]||0) - (statusOrder[b.status]||0);
+      return so !== 0 ? so : b.tds_gap - a.tds_gap;
+    });
+
+    // ── Summary ───────────────────────────────────────────────────
+    const summary = {};
+    Object.keys(TDS_SECTIONS).forEach(sec => {
+      const rows = violations.filter(v => v.section === sec);
+      summary[sec] = {
+        vendors_above_threshold: rows.length,
+        vendors_non_compliant:   rows.filter(v => v.status !== 'Compliant').length,
+        total_taxable:           Math.round(rows.reduce((s,v)=>s+v.total_taxable,0)*100)/100,
+        total_tds_gap:           Math.round(rows.reduce((s,v)=>s+v.tds_gap,0)*100)/100
+      };
+    });
+
+    const nonCompliant = violations.filter(v => v.status !== 'Compliant');
+    const totalGap     = Math.round(nonCompliant.reduce((s,v)=>s+v.tds_gap,0)*100)/100;
+    console.log(`✅ ${violations.length} vendors above threshold | ${nonCompliant.length} non-compliant | Gap ₹${totalGap}`);
+    res.json({
+      ok: true,
+      violations,                                         // all rows (compliant + non-compliant)
+      total_above_threshold: violations.length,
+      total_non_compliant:   nonCompliant.length,
+      vendors_affected:      new Set(nonCompliant.map(v=>v.partner_id)).size,
+      total_tds_gap:         totalGap,
+      vendors_checked:       Object.keys(vendorAnnual).length,
+      tds_accounts_used:     tdsAccountIds.length,
+      summary
+    });
+
+  } catch(e) {
+    console.error('❌ TDS check error:', e.message);
+    res.status(400).json({ ok:false, error:e.message });
+  }
+});
+
