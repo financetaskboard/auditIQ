@@ -1339,26 +1339,21 @@
   </div>
 
   <!-- Summary cards (shown after check) -->
-  <div id="rcCards" style="display:none;padding:12px 16px 0;" class="info-cards">
-    <div class="info-card hl-red">
-      <div class="info-card-label">Missing</div>
-      <div class="info-card-value red" id="rc-missing">—</div>
-      <div class="info-card-sub">Expected, not in Odoo</div>
-    </div>
-    <div class="info-card hl-green">
-      <div class="info-card-label">Booked ✓</div>
-      <div class="info-card-value green" id="rc-booked">—</div>
-      <div class="info-card-sub">Found in Odoo</div>
-    </div>
-    <div class="info-card">
-      <div class="info-card-label">Not Due</div>
-      <div class="info-card-value" id="rc-notdue">—</div>
-      <div class="info-card-sub">Not expected this period</div>
-    </div>
-    <div class="info-card">
-      <div class="info-card-label">Est. Missing (₹)</div>
-      <div class="info-card-value orange" id="rc-missing-amt" style="font-size:18px">—</div>
-      <div class="info-card-sub">Sum of expected amounts</div>
+  <!-- Compact stat bar (replaces large cards) -->
+  <div id="rcCards" style="display:none;padding:6px 16px;border-bottom:1px solid var(--border);background:var(--surface2);flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px">
+      <span style="background:#fde7e9;color:#a4262c;border-radius:6px;padding:3px 10px;font-weight:700">
+        ⚠ Missing: <span id="rc-missing">—</span>
+      </span>
+      <span style="background:#dff6dd;color:#107c10;border-radius:6px;padding:3px 10px;font-weight:600">
+        ✓ Booked: <span id="rc-booked">—</span>
+      </span>
+      <span style="background:#f3f2f1;color:#605e5c;border-radius:6px;padding:3px 10px">
+        ○ Not Due: <span id="rc-notdue">—</span>
+      </span>
+      <span style="background:#fff4e5;color:#a55300;border-radius:6px;padding:3px 10px;font-weight:600;margin-left:4px">
+        Est. Missing: <span id="rc-missing-amt">—</span>
+      </span>
     </div>
   </div>
 
@@ -1461,8 +1456,8 @@
     </div>
 
     <!-- Ledger table -->
-    <div style="flex:1;overflow:auto;padding:10px 16px 0;position:relative">
-      <table class="pattern-table" id="ledgerTable" style="min-width:500px;border-collapse:separate;border-spacing:0">
+    <div style="flex:1;overflow:auto;padding:0 0 0 0;position:relative">
+      <table id="ledgerTable" style="width:100%;min-width:500px;border-collapse:separate;border-spacing:0;font-size:12px">
         <thead id="ledgerHead" style="position:sticky;top:0;z-index:10"></thead>
         <tbody id="ledgerBody"></tbody>
       </table>
@@ -1756,6 +1751,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     restorePatternState(),
     restoreDeviationState()
   ]);
+  // Render recurring list from localStorage on boot
+  try { renderRecurring(); } catch(e){}
   await restoreTDSState();
   onTDSFYChange();
   restoreWHState();
@@ -4181,29 +4178,16 @@ document.addEventListener('keydown', e => {
 // List is saved in localStorage so it persists across sessions.
 // ═══════════════════════════════════════════════════════════════
 
-const RC_KEY = 'recurringList';
+const RC_KEY = 'odooAudit_recurring_v1';
 
-// Load & save via the app's own persistMeta (Firebase + localStorage fallback)
 function rcLoad() {
-  try {
-    const raw = localStorage.getItem('odooAudit_recurring_v1') || localStorage.getItem(RC_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(RC_KEY) || '[]'); }
+  catch(e) { return []; }
 }
 function rcSave(list) {
-  try { localStorage.setItem('odooAudit_recurring_v1', JSON.stringify(list)); } catch(e){}
-  // Also persist via Firebase+localStorage unified system (non-blocking)
-  persistMeta(RC_KEY, list).catch(() => {});
-}
-// On boot, restore from Firebase if available
-async function rcRestoreFromCloud() {
-  try {
-    const cloud = await loadPersisted(RC_KEY);
-    if (Array.isArray(cloud) && cloud.length > 0) {
-      localStorage.setItem('odooAudit_recurring_v1', JSON.stringify(cloud));
-      renderRecurring();
-    }
-  } catch(e){}
+  try { localStorage.setItem(RC_KEY, JSON.stringify(list)); } catch(e) {
+    console.warn('rcSave failed:', e);
+  }
 }
 
 // Statuses set by checkRecurring(), reset to '' on list change
@@ -4416,7 +4400,7 @@ async function checkRecurring() {
     document.getElementById('rc-booked').textContent     = booked;
     document.getElementById('rc-notdue').textContent     = notdue;
     document.getElementById('rc-missing-amt').textContent = '₹' + Math.round(missingAmt).toLocaleString('en-IN');
-    document.getElementById('rcCards').style.display     = 'flex';
+    document.getElementById('rcCards').style.display     = 'block';
 
     // Update nav badge
     const badge = document.getElementById('cnt-recurring');
@@ -4525,8 +4509,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tab === 'recurring') renderRecurring();
     };
   }
-  // Restore recurring list from cloud after boot
-  setTimeout(rcRestoreFromCloud, 1200);
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -4614,27 +4596,44 @@ function ldSort(col) {
 // ── Amount cell popup ───────────────────────────────────────────
 let _ldPopupTimer = null;
 function showLdPopup(el, amt, cnt, vendor, month) {
+  // Toggle: clicking same cell hides popup
   let pop = document.getElementById('ldPopup');
+  if (pop && pop._anchor === el && pop.style.display !== 'none') {
+    hideLdPopup(); return;
+  }
   if (!pop) {
     pop = document.createElement('div');
     pop.id = 'ldPopup';
-    pop.style.cssText = 'position:fixed;z-index:9999;background:#1e293b;color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;line-height:1.7;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:opacity .15s';
+    pop.style.cssText = 'position:fixed;z-index:9999;background:#1e293b;color:#fff;padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.8;box-shadow:0 6px 24px rgba(0,0,0,.35);min-width:180px';
     document.body.appendChild(pop);
+    document.addEventListener('click', e => {
+      if (!e.target.closest('[data-ld-cell]') && document.getElementById('ldPopup'))
+        hideLdPopup();
+    });
   }
+  pop._anchor = el;
   const avg = cnt > 0 ? Math.round(amt / cnt) : 0;
-  const fmtFull = v => v >= 10000000 ? '₹'+(v/10000000).toFixed(2)+'Cr' : v >= 100000 ? '₹'+(v/100000).toFixed(2)+'L' : v >= 1000 ? '₹'+(v/1000).toFixed(1)+'K' : '₹'+Math.round(v).toLocaleString('en-IN');
-  pop.innerHTML = `<div style="font-weight:600;margin-bottom:4px">${vendor}</div><div style="color:#94a3b8;font-size:11px">${month}</div><hr style="border-color:#334155;margin:5px 0"><div>${cnt} bill${cnt>1?'s':''}</div><div>Total: ${fmtFull(amt)}</div><div style="color:#94a3b8">Avg/bill: ${fmtFull(avg)}</div>`;
+  const ff = v => v >= 10000000 ? '₹'+(v/10000000).toFixed(2)+'Cr' : v >= 100000 ? '₹'+(v/100000).toFixed(2)+'L' : v >= 1000 ? '₹'+(v/1000).toFixed(1)+'K' : '₹'+Math.round(v).toLocaleString('en-IN');
+  pop.innerHTML = `<div style="font-weight:700;font-size:13px">${vendor}</div>
+    <div style="color:#94a3b8;font-size:11px;margin-bottom:6px">${month}</div>
+    <div style="display:flex;justify-content:space-between;gap:16px">
+      <span style="color:#94a3b8">Bills</span><span style="font-weight:600">${cnt}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:16px">
+      <span style="color:#94a3b8">Total</span><span style="font-weight:600">${ff(amt)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:16px">
+      <span style="color:#94a3b8">Avg/bill</span><span>${ff(avg)}</span>
+    </div>`;
   const rect = el.getBoundingClientRect();
-  pop.style.opacity = '1';
   pop.style.display = 'block';
-  // Position above or below depending on space
-  const top = rect.top > 160 ? rect.top - 130 : rect.bottom + 6;
-  pop.style.top  = top + 'px';
-  pop.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+  const top = rect.top > 180 ? rect.top - 120 : rect.bottom + 8;
+  pop.style.top  = Math.max(8, top) + 'px';
+  pop.style.left = Math.min(rect.left - 20, window.innerWidth - 200) + 'px';
 }
 function hideLdPopup() {
   const pop = document.getElementById('ldPopup');
-  if (pop) { pop.style.opacity = '0'; setTimeout(() => { if(pop) pop.style.display='none'; }, 150); }
+  if (pop) { pop.style.display = 'none'; pop._anchor = null; }
 }
 
 function renderLedger() {
@@ -4716,11 +4715,10 @@ function renderLedger() {
       const fmtd = fmt(amt);
       if (!fmtd) return `<td style="text-align:right;color:#ddd;font-size:12px;padding:5px 8px">—</td>`;
       const mLabel = new Date(m + '-01').toLocaleString('en-IN', { month: 'short', year: 'numeric' });
-      const multi  = cnt > 1 ? `<span style="font-size:9px;color:var(--text2);margin-left:2px">×${cnt}</span>` : '';
-      return `<td style="text-align:right;font-family:'Courier New',monospace;font-size:12px;padding:5px 8px;cursor:pointer"
-        onmouseenter="showLdPopup(this,${amt},${cnt},${JSON.stringify(v.partner_name)},${JSON.stringify(mLabel)})"
-        onmouseleave="hideLdPopup()"
-      >${fmtd}${multi}</td>`;
+      return `<td data-ld-cell="1" style="text-align:right;font-family:'Courier New',monospace;font-size:12px;padding:5px 8px;cursor:pointer;user-select:none"
+        onclick="showLdPopup(this,${amt},${cnt},${JSON.stringify(v.partner_name)},${JSON.stringify(mLabel)})"
+        title="Click to see bill details"
+      >${fmtd}</td>`;
     }).join('');
     const avgFmt = fmt(v._avg) || '—';
     return `<tr>
