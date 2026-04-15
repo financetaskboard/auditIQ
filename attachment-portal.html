@@ -387,6 +387,12 @@
         <span class="nav-badge zero" id="cnt-weekend">0</span>
       </div>
 
+      <div class="nav-item" id="nav-recurring" onclick="switchTab('recurring')" title="Recurring Invoices">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+        <span class="nav-label">Recurring Invoices</span>
+        <span class="nav-badge zero" id="cnt-recurring">0</span>
+      </div>
+
       <div class="nav-section-label" style="margin-top:4px">Actions</div>
 
       <div class="nav-item" onclick="exportCSV()" title="Export CSV">
@@ -745,6 +751,7 @@
           </div>
         </div>
       </div>
+
       <div style="padding:8px 16px; background:var(--surface2); border-top:1px solid var(--border); font-size:12px; color:var(--text2); flex-shrink:0;" id="patternInfo">—</div>
     </div>
 
@@ -1271,6 +1278,204 @@
         <div class="page-btns" id="whPageBtns"></div>
       </div>
     </div>
+
+<!-- ── RECURRING INVOICES ── -->
+<div id="page-recurring" class="page" style="padding:0;display:none;flex-direction:column;">
+
+  <!-- Top bar -->
+  <div class="content-topbar">
+    <span class="content-topbar-title">🔄 Recurring Invoices</span>
+        <!-- Tab toggle -->
+        <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;margin:0 10px;flex-shrink:0">
+          <button id="rcTabChecklist" onclick="switchRCTab('checklist')"
+            style="padding:4px 14px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--primary);color:#fff">
+            Checklist
+          </button>
+          <button id="rcTabLedger" onclick="switchRCTab('ledger')"
+            style="padding:4px 14px;font-size:12px;font-weight:500;border:none;cursor:pointer;background:#f3f2f1;color:var(--text2)">
+            Monthly Ledger
+          </button>
+        </div>
+    <div class="content-topbar-actions">
+      <button class="topbar-btn" onclick="showAddRecurringRow()" id="btnAddRecurring">
+        <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
+        Add Vendor
+      </button>
+      <button class="topbar-btn" onclick="importFromPattern()" title="Import suggestions from Vendor Pattern data">
+        <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M0 0h1v15h15v1H0V0Zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07z"/></svg>
+        Suggest from Pattern
+      </button>
+      <div class="topbar-sep"></div>
+      <button class="topbar-btn primary" onclick="checkRecurring()" id="btnCheckRecurring">
+        <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/></svg>
+        Check <span id="rcCheckMonthLabel">This Month</span>
+      </button>
+      <button class="topbar-btn" onclick="exportRecurringCSV()">
+        <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+        Export CSV
+      </button>
+    </div>
+  </div>
+
+  <!-- CHECKLIST PANE -->
+  <div id="rcChecklistPane" style="display:contents">
+  <!-- Filter bar -->
+  <div class="filter-bar" style="background:#f8f7f6;border-bottom:2px solid var(--border);">
+    <div class="filter-group">
+      <label class="filter-label">Check Month</label>
+      <input type="month" class="fl-input" id="recurringCheckMonth" style="width:155px" onchange="updateCheckLabel()" />
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-group">
+      <label class="filter-label">Show</label>
+      <select class="fl-select" id="recurringStatusFilter" style="width:130px" onchange="renderRecurring()">
+        <option value="all">All Vendors</option>
+        <option value="missing">Missing only</option>
+        <option value="booked">Booked only</option>
+        <option value="active">Active only</option>
+      </select>
+    </div>
+    <input type="text" class="fl-input" id="recurringSearch" placeholder="🔍 Search vendor…" style="width:200px;margin-left:auto" oninput="renderRecurring()" />
+  </div>
+
+  <!-- Summary cards (shown after check) -->
+  <div id="rcCards" style="display:none;padding:12px 16px 0;" class="info-cards">
+    <div class="info-card hl-red">
+      <div class="info-card-label">Missing</div>
+      <div class="info-card-value red" id="rc-missing">—</div>
+      <div class="info-card-sub">Expected, not in Odoo</div>
+    </div>
+    <div class="info-card hl-green">
+      <div class="info-card-label">Booked ✓</div>
+      <div class="info-card-value green" id="rc-booked">—</div>
+      <div class="info-card-sub">Found in Odoo</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Not Due</div>
+      <div class="info-card-value" id="rc-notdue">—</div>
+      <div class="info-card-sub">Not expected this period</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Est. Missing (₹)</div>
+      <div class="info-card-value orange" id="rc-missing-amt" style="font-size:18px">—</div>
+      <div class="info-card-sub">Sum of expected amounts</div>
+    </div>
+  </div>
+
+  <!-- Add vendor inline form -->
+  <div id="rcAddForm" style="display:none;padding:12px 16px;background:#f0f4ff;border-bottom:2px solid #b8c8f0;">
+    <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px">Add Recurring Vendor</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div style="position:relative;flex:2;min-width:180px">
+        <label class="filter-label">Vendor name</label>
+        <input type="text" class="fl-input" id="rcVendorSearch" placeholder="Type to search Odoo vendors…" style="width:100%" oninput="rcSearchVendors(this.value)" autocomplete="off" />
+        <div id="rcVendorDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:200;max-height:180px;overflow-y:auto;font-size:13px"></div>
+      </div>
+      <div style="flex:0 0 auto">
+        <label class="filter-label">Frequency</label>
+        <select class="fl-select" id="rcFreq" style="width:130px">
+          <option value="Monthly">Monthly</option>
+          <option value="Quarterly">Quarterly</option>
+          <option value="Half-Yearly">Half-Yearly</option>
+          <option value="Annual">Annual</option>
+        </select>
+      </div>
+      <div style="flex:0 0 auto">
+        <label class="filter-label">Expected ₹ (approx)</label>
+        <input type="number" class="fl-input" id="rcExpAmt" placeholder="0" style="width:130px" />
+      </div>
+      <div style="flex:1;min-width:120px">
+        <label class="filter-label">Notes</label>
+        <input type="text" class="fl-input" id="rcNotes" placeholder="e.g. Rent, AWS, CA fees…" style="width:100%" />
+      </div>
+      <div style="flex:0 0 auto;display:flex;gap:6px;padding-bottom:1px">
+        <button class="topbar-btn primary" onclick="saveRecurringEntry()">Add</button>
+        <button class="topbar-btn" onclick="hideAddRecurringRow()">Cancel</button>
+      </div>
+    </div>
+    <input type="hidden" id="rcPartnerId" value="" />
+  </div>
+
+  <!-- Table -->
+  <div style="flex:1;overflow-y:auto;padding:10px 16px 0;">
+    <table class="data-table" style="min-width:750px">
+      <thead>
+        <tr>
+          <th class="sno">#</th>
+          <th>Vendor</th>
+          <th>Frequency</th>
+          <th style="text-align:right">Expected ₹</th>
+          <th>Notes</th>
+          <th style="text-align:center">Active</th>
+          <th style="text-align:center">Status</th>
+          <th style="text-align:center">Remove</th>
+        </tr>
+      </thead>
+      <tbody id="rcTbody"></tbody>
+    </table>
+    <div id="rcEmpty" class="empty-state">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/></svg>
+      <h3>No recurring vendors yet</h3>
+      <p>Click <strong>+ Add Vendor</strong> to add your first recurring expense, or use <strong>Suggest from Pattern</strong> if you've already run Vendor Pattern analysis.</p>
+    </div>
+  </div>
+  <div class="pagination" id="rcPagination" style="display:none">
+    <span id="rcInfo" style="font-size:12px;color:var(--text2)"></span>
+  </div>
+  </div><!-- /rcChecklistPane -->
+
+  <!-- ── MONTHLY LEDGER PANE (hidden until tab switch) ── -->
+  <div id="rcLedgerPane" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+
+    <!-- Ledger filter bar -->
+    <div class="filter-bar" style="background:#f8f7f6;border-bottom:2px solid var(--border);flex-shrink:0">
+      <div class="filter-group">
+        <label class="filter-label" style="color:var(--primary);font-weight:700">📅 FY</label>
+        <select class="fl-select" id="ledgerViewFY" style="width:130px;font-weight:600;border-color:var(--primary)" onchange="applyLedgerFYView()">
+          <option value="all">All Data</option>
+          <option value="2023-24">FY 2023-24</option>
+          <option value="2024-25">FY 2024-25</option>
+          <option value="2025-26">FY 2025-26</option>
+          <option value="2026-27" selected>FY 2026-27</option>
+        </select>
+      </div>
+      <span id="ledgerFYRange" style="font-size:11px;color:var(--text3);background:var(--primary-light);padding:2px 10px;border-radius:10px">2026-04-01 → 2027-03-31</span>
+      <div class="filter-sep"></div>
+      <div class="filter-group">
+        <label class="filter-label">Min months</label>
+        <select class="fl-select" id="ledgerMinMonths" style="width:70px">
+          <option value="1" selected>1+</option>
+          <option value="2">2+</option>
+          <option value="3">3+</option>
+        </select>
+      </div>
+      <input type="text" class="fl-input" id="ledgerSearch" placeholder="🔍 Search vendor…" style="width:200px;margin-left:auto" oninput="renderLedger()" />
+      <button class="topbar-btn primary" onclick="fetchLedger()" style="margin-left:8px;white-space:nowrap">
+        <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+        Fetch from Odoo
+      </button>
+      <button class="topbar-btn" onclick="exportLedgerCSV()" style="margin-left:4px">
+        <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+        Export
+      </button>
+    </div>
+
+    <!-- Ledger table -->
+    <div style="flex:1;overflow:auto;padding:10px 16px 0">
+      <table class="pattern-table" id="ledgerTable" style="min-width:500px">
+        <thead id="ledgerHead"></thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
+      <div id="ledgerEmpty" class="empty-state">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 0h1v15h15v1H0V0Zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07z"/></svg>
+        <h3>No Ledger Data</h3>
+        <p>Select a FY and click <strong>Fetch from Odoo</strong> to load vendor-wise monthly amounts.</p>
+      </div>
+    </div>
+    <div style="padding:6px 16px;background:var(--surface2);border-top:1px solid var(--border);font-size:12px;color:var(--text2);flex-shrink:0" id="ledgerInfo">—</div>
+  </div>
+
+</div>
 
   </div><!-- /content-panel -->
 </div><!-- /app-body -->
@@ -2515,6 +2720,7 @@ function renderPattern() {
     <th style="text-align:center;min-width:60px">Active<br>Months</th>
     <th style="text-align:center;min-width:60px">Gaps</th>
     <th style="text-align:right;min-width:90px">Avg / Month</th>
+    <th style="text-align:center;min-width:80px">Recurring</th>
     ${monthLabels}
   </tr>`;
 
@@ -2806,6 +3012,7 @@ function renderPattern() {
       <td style="text-align:center"><span class="pattern-stat">${v.active_months}/${visibleMonths.length}</span></td>
       <td style="text-align:center"><span class="${gapCount>0?'gap-badge':'gap-badge zero'}">${gapCount}</span></td>
       <td style="text-align:right;font-family:'Courier New',monospace">₹${avg}</td>
+      <td style="text-align:center"><button class="topbar-btn" style="font-size:10px;padding:2px 8px;height:22px" onclick="addToRecurringFromPattern(${v.partner_id},${JSON.stringify(x(v.partner_name))},${v.avg_monthly})" title="Add to Recurring Invoices checklist">+ Recurring</button></td>
       ${cells}
     </tr>`;
   }).join('');
@@ -3037,13 +3244,14 @@ function exportDeviation() {
 // FY VIEW FILTERS — client-side, no Odoo call
 // ══════════════════════════════════════════════════════════════
 
+
 // ── Pattern: FY view filters month columns ─────────────────────
 function applyPatternFYView() {
   const fy = document.getElementById('pViewFY').value;
   const { from, to } = fyViewDates(fy);
   const label = document.getElementById('pViewFYRange');
   label.textContent = from ? `${from}  →  ${to}` : 'Showing all synced data';
-  renderPattern();  // renderPattern reads pViewFY and subsets months
+  renderPattern();
 }
 
 // ── Deviation: FY view filters rows by date ────────────────────
@@ -3965,6 +4173,525 @@ function restoreWHState() {
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey||e.metaKey) && e.key==='r') { e.preventDefault(); runAudit(); }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// RECURRING INVOICES MODULE — Checklist style (Quickbooks/Xero UX)
+// Team manually manages a list of recurring vendors.
+// "Check" button hits Odoo and marks each as Booked ✓ / Missing ⚠ / Not Due.
+// List is saved in localStorage so it persists across sessions.
+// ═══════════════════════════════════════════════════════════════
+
+const RC_KEY = 'odooAudit_recurring_v1';
+
+// Load list from localStorage
+function rcLoad() {
+  try { return JSON.parse(localStorage.getItem(RC_KEY) || '[]'); } catch(e) { return []; }
+}
+function rcSave(list) {
+  localStorage.setItem(RC_KEY, JSON.stringify(list));
+}
+
+// Statuses set by checkRecurring(), reset to '' on list change
+let rcStatuses = {}; // partner_id → { status, found_count, found_amt }
+
+// ── Init month picker ──────────────────────────────────────────
+(function initRCMonth() {
+  const d  = new Date();
+  const ym = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  const el = document.getElementById('recurringCheckMonth');
+  if (el) { el.value = ym; updateCheckLabel(); }
+})();
+
+function updateCheckLabel() {
+  const v = document.getElementById('recurringCheckMonth')?.value;
+  if (!v) return;
+  const [y, m] = v.split('-');
+  const name = new Date(+y, +m - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+  const el = document.getElementById('rcCheckMonthLabel');
+  if (el) el.textContent = name;
+}
+
+// ── Add vendor form ────────────────────────────────────────────
+function showAddRecurringRow() {
+  document.getElementById('rcAddForm').style.display = '';
+  document.getElementById('rcVendorSearch').value = '';
+  document.getElementById('rcPartnerId').value    = '';
+  document.getElementById('rcExpAmt').value       = '';
+  document.getElementById('rcNotes').value        = '';
+  document.getElementById('rcFreq').value         = 'Monthly';
+  document.getElementById('rcVendorSearch').focus();
+}
+function hideAddRecurringRow() {
+  document.getElementById('rcAddForm').style.display  = 'none';
+  document.getElementById('rcVendorDropdown').style.display = 'none';
+}
+
+let rcSearchTimer = null;
+async function rcSearchVendors(q) {
+  const dd = document.getElementById('rcVendorDropdown');
+  document.getElementById('rcPartnerId').value = ''; // clear selection when typing
+  if (!q || q.length < 2) { dd.style.display = 'none'; return; }
+  clearTimeout(rcSearchTimer);
+  rcSearchTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`${PROXY}/api/partners/search`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q })
+      });
+      const data = await r.json();
+      if (!data.ok || !data.partners.length) {
+        dd.innerHTML = '<div style="padding:8px 12px;color:var(--text2)">No vendors found</div>';
+        dd.style.display = '';
+        return;
+      }
+      dd.innerHTML = data.partners.map(p =>
+        `<div style="padding:7px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)"
+          onmousedown="rcSelectVendor(${p.id},${JSON.stringify(p.name.replace(/'/g,"&#39;"))})"
+          onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"
+        >${x(p.name)}<span style="font-size:11px;color:var(--text2);margin-left:6px">#${p.id}</span></div>`
+      ).join('');
+      dd.style.display = '';
+    } catch(e) { dd.style.display = 'none'; }
+  }, 280);
+}
+
+function rcSelectVendor(id, name) {
+  document.getElementById('rcPartnerId').value    = id;
+  document.getElementById('rcVendorSearch').value = name;
+  document.getElementById('rcVendorDropdown').style.display = 'none';
+}
+
+function saveRecurringEntry() {
+  const pid   = document.getElementById('rcPartnerId').value;
+  const name  = document.getElementById('rcVendorSearch').value.trim();
+  const freq  = document.getElementById('rcFreq').value;
+  const amt   = parseFloat(document.getElementById('rcExpAmt').value) || 0;
+  const notes = document.getElementById('rcNotes').value.trim();
+
+  if (!name) { toast('Enter a vendor name', 'error'); return; }
+
+  const list = rcLoad();
+  // Warn if partner already in list (by pid if resolved, else by name)
+  if (pid && list.some(e => String(e.partner_id) === String(pid))) {
+    toast('This vendor is already in your recurring list', 'error'); return;
+  }
+  if (!pid && list.some(e => e.partner_name.toLowerCase() === name.toLowerCase())) {
+    toast('This vendor is already in your recurring list', 'error'); return;
+  }
+
+  list.push({ id: Date.now(), partner_id: pid ? Number(pid) : null, partner_name: name,
+              frequency: freq, expected_amount: amt, notes, active: true });
+  rcSave(list);
+  rcStatuses = {};
+  hideAddRecurringRow();
+  renderRecurring();
+  toast(`${name} added to recurring list`, 'success');
+}
+
+// ── Remove entry ───────────────────────────────────────────────
+function removeRecurringEntry(id) {
+  const list = rcLoad().filter(e => e.id !== id);
+  rcSave(list);
+  rcStatuses = {};
+  renderRecurring();
+}
+
+// ── Toggle active ──────────────────────────────────────────────
+function toggleRecurringActive(id) {
+  const list = rcLoad();
+  const e = list.find(e => e.id === id);
+  if (e) { e.active = !e.active; rcSave(list); renderRecurring(); }
+}
+
+// ── Import suggestions from patternData (already in memory) ───
+function importFromPattern() {
+  if (!patternData || !patternData.vendors || !patternData.vendors.length) {
+    toast('Run Vendor Pattern analysis first, then come back here', 'error'); return;
+  }
+  // Suggest vendors appearing in ≥ 75% of months — strong recurring signal
+  const totalMonths = (patternData.months || []).length;
+  const threshold   = Math.max(2, Math.floor(totalMonths * 0.75));
+  const candidates  = patternData.vendors.filter(v => v.active_months >= threshold);
+  if (!candidates.length) {
+    toast('No strong recurring patterns found in current Vendor Pattern data', 'error'); return;
+  }
+  const list = rcLoad();
+  let added = 0;
+  candidates.forEach(v => {
+    if (list.some(e => e.partner_id === v.partner_id)) return; // already there
+    list.push({ id: Date.now() + added, partner_id: v.partner_id,
+      partner_name: v.partner_name, frequency: 'Monthly',
+      expected_amount: v.avg_monthly || 0, notes: 'Imported from Vendor Pattern',
+      active: true });
+    added++;
+  });
+  if (!added) { toast('All strong recurring vendors are already in your list', 'success'); return; }
+  rcSave(list);
+  rcStatuses = {};
+  renderRecurring();
+  toast(`${added} vendors added from Vendor Pattern`, 'success');
+}
+
+// ── Called from Vendor Pattern table row button ────────────────
+function addToRecurringFromPattern(partner_id, partner_name, avg_monthly) {
+  const list = rcLoad();
+  if (list.some(e => e.partner_id === partner_id)) {
+    toast(`${partner_name} is already in your recurring list`, 'error'); return;
+  }
+  list.push({ id: Date.now(), partner_id, partner_name,
+    frequency: 'Monthly', expected_amount: avg_monthly || 0,
+    notes: 'From Vendor Pattern', active: true });
+  rcSave(list);
+  rcStatuses = {};
+  toast(`${partner_name} added to recurring list`, 'success');
+}
+
+// ── Check this month against Odoo ─────────────────────────────
+async function checkRecurring() {
+  const checkYM = document.getElementById('recurringCheckMonth').value;
+  if (!checkYM) { toast('Select a month to check', 'error'); return; }
+
+  const list = rcLoad().filter(e => e.active && e.partner_id);
+  if (!list.length) {
+    toast('No active vendors with Odoo IDs to check. Add vendors first.', 'error'); return;
+  }
+
+  if (!PROXY) { toast('Connect to Odoo first (App Settings)', 'error'); return; }
+
+  setLoading(true);
+  try {
+    const r = await fetch(`${PROXY}/api/recurring/check`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        checkYearMonth: checkYM,
+        partner_ids: list.map(e => e.partner_id)
+      })
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Server error');
+
+    // Build status map
+    rcStatuses = {};
+    data.results.forEach(r => { rcStatuses[r.partner_id] = r; });
+
+    // Compute summary
+    let missing = 0, booked = 0, notdue = 0, missingAmt = 0;
+    rcLoad().filter(e => e.active).forEach(e => {
+      if (!e.partner_id) return;
+      const st = rcStatuses[e.partner_id];
+      if (!st) return;
+      if (st.status === 'Missing ⚠')  { missing++; missingAmt += e.expected_amount || 0; }
+      if (st.status === 'Booked ✓')   booked++;
+      if (st.status === 'Not Due')     notdue++;
+    });
+
+    document.getElementById('rc-missing').textContent    = missing;
+    document.getElementById('rc-booked').textContent     = booked;
+    document.getElementById('rc-notdue').textContent     = notdue;
+    document.getElementById('rc-missing-amt').textContent = '₹' + Math.round(missingAmt).toLocaleString('en-IN');
+    document.getElementById('rcCards').style.display     = 'flex';
+
+    // Update nav badge
+    const badge = document.getElementById('cnt-recurring');
+    badge.textContent = missing;
+    badge.className   = `nav-badge ${missing > 0 ? '' : 'zero'}`;
+
+    renderRecurring();
+    toast(`Checked ${list.length} vendors for ${checkYM} — ${missing} missing`, missing > 0 ? 'error' : 'success');
+
+  } catch(e) {
+    toast('Check failed: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Render table ───────────────────────────────────────────────
+function renderRecurring() {
+  const statusF = document.getElementById('recurringStatusFilter')?.value || 'all';
+  const search  = (document.getElementById('recurringSearch')?.value || '').toLowerCase();
+
+  let list = rcLoad();
+
+  if (statusF === 'missing') list = list.filter(e => rcStatuses[e.partner_id]?.status === 'Missing ⚠');
+  if (statusF === 'booked')  list = list.filter(e => rcStatuses[e.partner_id]?.status === 'Booked ✓');
+  if (statusF === 'active')  list = list.filter(e => e.active);
+  if (search) list = list.filter(e => e.partner_name.toLowerCase().includes(search));
+
+  const tbody = document.getElementById('rcTbody');
+  const empty = document.getElementById('rcEmpty');
+  const info  = document.getElementById('rcInfo');
+  const pg    = document.getElementById('rcPagination');
+
+  if (!list.length) {
+    tbody.innerHTML = '';
+    empty.style.display  = '';
+    pg.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  pg.style.display    = '';
+
+  const freqColor = { Monthly:'#deecf9', Quarterly:'#fff4ce', 'Half-Yearly':'#f3e6ff', Annual:'#e8f5e9' };
+  const statusStyle = {
+    'Booked ✓':  'background:#dff6dd;color:#107c10;font-weight:600',
+    'Missing ⚠': 'background:#fde7e9;color:#a4262c;font-weight:700',
+    'Not Due':   'background:#f3f2f1;color:#605e5c',
+    '':          'background:#f9f8f7;color:#a0a09a'
+  };
+
+  tbody.innerHTML = list.map((e, i) => {
+    const st  = rcStatuses[e.partner_id];
+    const statusLabel = st ? st.status : (e.partner_id ? '—' : 'No Odoo ID');
+    const rowBg = st?.status === 'Missing ⚠' ? 'background:#fff8f8' : '';
+    return `<tr style="${rowBg}">
+      <td class="sno">${i+1}</td>
+      <td style="font-weight:600">${x(e.partner_name)}${!e.partner_id ? '<span style="font-size:10px;color:var(--danger);margin-left:4px">⚠ not linked</span>':''}</td>
+      <td><span style="background:${freqColor[e.frequency]||'#f3f2f1'};border-radius:10px;padding:2px 9px;font-size:11px;font-weight:700">${e.frequency}</span></td>
+      <td class="amt">${e.expected_amount ? '₹' + Math.round(e.expected_amount).toLocaleString('en-IN') : '—'}</td>
+      <td style="font-size:12px;color:var(--text2)">${x(e.notes || '')}</td>
+      <td style="text-align:center">
+        <input type="checkbox" ${e.active ? 'checked' : ''} onchange="toggleRecurringActive(${e.id})" style="cursor:pointer;width:15px;height:15px" />
+      </td>
+      <td style="text-align:center">
+        <span style="${statusStyle[st?.status||'']||statusStyle['']};border-radius:10px;padding:2px 10px;font-size:11px">${statusLabel}</span>
+        ${st?.found_count > 0 ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${st.found_count} bill${st.found_count>1?'s':''} · ₹${Math.round(st.found_amt).toLocaleString('en-IN')}</div>` : ''}
+      </td>
+      <td style="text-align:center">
+        <button class="icon-btn" onclick="removeRecurringEntry(${e.id})" title="Remove" style="color:var(--danger)">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const total = rcLoad().length;
+  info.textContent = `Showing ${list.length} of ${total} vendors`;
+}
+
+// ── Export CSV ─────────────────────────────────────────────────
+function exportRecurringCSV() {
+  const list = rcLoad();
+  if (!list.length) { toast('No vendors in list', 'error'); return; }
+  const cols = ['Vendor', 'Partner ID', 'Frequency', 'Expected ₹', 'Notes', 'Active', 'Status'];
+  const rows = list.map(e => {
+    const st = rcStatuses[e.partner_id];
+    return [e.partner_name, e.partner_id || '', e.frequency,
+      e.expected_amount || '', e.notes || '', e.active ? 'Yes' : 'No',
+      st ? st.status : ''];
+  });
+  const csv = [cols, ...rows].map(r =>
+    r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })),
+    download: `recurring_${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+  toast(`Exported ${list.length} vendors`, 'success');
+}
+
+// ── Render on tab switch ───────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const orig = window.switchTab;
+  if (orig) {
+    window.switchTab = function(tab) {
+      orig(tab);
+      if (tab === 'recurring') renderRecurring();
+    };
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// RECURRING — TAB SWITCHER (Checklist ↔ Monthly Ledger)
+// ═══════════════════════════════════════════════════════════════
+let rcActiveTab = 'checklist';
+
+function switchRCTab(tab) {
+  rcActiveTab = tab;
+  const isChecklist = tab === 'checklist';
+
+  document.getElementById('rcChecklistPane').style.display = isChecklist ? 'contents' : 'none';
+  document.getElementById('rcLedgerPane').style.display    = isChecklist ? 'none' : 'flex';
+
+  // Tab button styles
+  const btnC = document.getElementById('rcTabChecklist');
+  const btnL = document.getElementById('rcTabLedger');
+  btnC.style.background = isChecklist ? 'var(--primary)' : '#f3f2f1';
+  btnC.style.color      = isChecklist ? '#fff' : 'var(--text2)';
+  btnL.style.background = isChecklist ? '#f3f2f1' : 'var(--primary)';
+  btnL.style.color      = isChecklist ? 'var(--text2)' : '#fff';
+
+  if (!isChecklist && ledgerData.vendors?.length) renderLedger();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MONTHLY LEDGER — fetch vendor amounts from Odoo month-by-month
+// Reuses the existing /api/sync/vendor-pattern endpoint.
+// ═══════════════════════════════════════════════════════════════
+let ledgerData = { months: [], vendors: [] };
+
+function fyToDateRange(fy) {
+  // fy = "2026-27"  →  { from: "2026-04-01", to: "2027-03-31" }
+  if (!fy || fy === 'all') return { from: null, to: null };
+  const y = parseInt(fy.split('-')[0]);
+  return { from: `${y}-04-01`, to: `${y + 1}-03-31` };
+}
+
+function applyLedgerFYView() {
+  const fy = document.getElementById('ledgerViewFY').value;
+  const { from, to } = fyToDateRange(fy);
+  const label = document.getElementById('ledgerFYRange');
+  label.textContent = from ? `${from}  →  ${to}` : 'All synced data';
+  renderLedger();
+}
+
+async function fetchLedger() {
+  const fy  = document.getElementById('ledgerViewFY').value;
+  const min = parseInt(document.getElementById('ledgerMinMonths').value) || 1;
+  const { from, to } = fyToDateRange(fy);
+
+  if (!from) {
+    toast('Select a FY to fetch', 'error'); return;
+  }
+  if (!PROXY) { toast('Connect to Odoo first (App Settings)', 'error'); return; }
+
+  setLoading(true);
+  try {
+    const r = await fetch(`${PROXY}/api/sync/vendor-pattern`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dateFrom: from, dateTo: to, accountScope: 'vendor_bills', minMonths: min })
+    });
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.error || 'Failed');
+
+    ledgerData = res;
+    renderLedger();
+    toast(`${res.total_vendors} vendors loaded for ${fy}`, 'success');
+  } catch(e) {
+    toast('Ledger fetch failed: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function renderLedger() {
+  const head  = document.getElementById('ledgerHead');
+  const body  = document.getElementById('ledgerBody');
+  const empty = document.getElementById('ledgerEmpty');
+  const info  = document.getElementById('ledgerInfo');
+
+  const fy  = document.getElementById('ledgerViewFY').value;
+  const q   = (document.getElementById('ledgerSearch')?.value || '').toLowerCase();
+
+  // Subset months to selected FY
+  const { from: fyFrom, to: fyTo } = fyToDateRange(fy);
+  let months = (ledgerData.months || []).filter(m =>
+    !fyFrom || (m >= fyFrom.slice(0,7) && m <= fyTo.slice(0,7))
+  );
+
+  if (!months.length || !ledgerData.vendors?.length) {
+    head.innerHTML = ''; body.innerHTML = '';
+    empty.style.display = '';
+    info.textContent = 'No data — click Fetch from Odoo';
+    return;
+  }
+  empty.style.display = 'none';
+
+  let vendors = [...ledgerData.vendors];
+  if (q) vendors = vendors.filter(v => v.partner_name.toLowerCase().includes(q));
+
+  // Sort by total desc
+  vendors = vendors.map(v => {
+    const total = months.reduce((s, m) => s + (v.monthly?.[m]?.amount || 0), 0);
+    return { ...v, _total: total };
+  }).sort((a, b) => b._total - a._total);
+
+  // Compact amount formatter
+  const fmt = amt => {
+    if (!amt) return '<span style="color:#ccc">—</span>';
+    if (amt >= 10000000) return '₹' + (amt / 10000000).toFixed(2) + 'Cr';
+    if (amt >= 100000)   return '₹' + (amt / 100000).toFixed(2) + 'L';
+    if (amt >= 1000)     return '₹' + (amt / 1000).toFixed(1) + 'K';
+    return '₹' + Math.round(amt).toLocaleString('en-IN');
+  };
+
+  // Month header labels  "Apr '26"
+  const monthLabels = months.map(m => {
+    const d = new Date(m + '-01');
+    return `<th class="month-th" style="text-align:right;min-width:88px;white-space:nowrap">${d.toLocaleString('en-IN',{month:'short'})} '${String(d.getFullYear()).slice(2)}</th>`;
+  }).join('');
+
+  head.innerHTML = `<tr>
+    <th style="min-width:200px;position:sticky;left:0;z-index:11;background:#f3f2f1">Vendor</th>
+    ${monthLabels}
+    <th style="text-align:right;min-width:90px;background:#e8f0fe;color:#1a56db;white-space:nowrap">Total</th>
+    <th style="text-align:right;min-width:80px;white-space:nowrap">Avg / Mo</th>
+  </tr>`;
+
+  // Column totals
+  const colTotals   = months.map(m => vendors.reduce((s, v) => s + (v.monthly?.[m]?.amount || 0), 0));
+  const grandTotal  = colTotals.reduce((s, v) => s + v, 0);
+  const activeCols  = colTotals.filter(t => t > 0).length;
+
+  body.innerHTML = vendors.map(v => {
+    const cells = months.map(m => {
+      const amt = v.monthly?.[m]?.amount || 0;
+      const cnt = v.monthly?.[m]?.count  || 0;
+      if (!amt) return `<td style="text-align:right;color:#ddd;font-size:12px">—</td>`;
+      const multi = cnt > 1 ? `<sup style="font-size:9px;color:var(--text2)"> ×${cnt}</sup>` : '';
+      return `<td style="text-align:right;font-family:'Courier New',monospace;font-size:12px" title="${cnt} bill${cnt>1?'s':''}">${fmt(amt)}${multi}</td>`;
+    }).join('');
+    const vActive = months.filter(m => v.monthly?.[m]?.amount).length;
+    const avg     = vActive ? v._total / vActive : 0;
+    return `<tr>
+      <td style="font-weight:600;font-size:13px;position:sticky;left:0;background:#fff;z-index:1;box-shadow:2px 0 3px rgba(0,0,0,.04);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(v.partner_name)}">${x(v.partner_name)}</td>
+      ${cells}
+      <td style="text-align:right;font-weight:700;font-family:'Courier New',monospace;font-size:12px;background:#e8f0fe;color:#1a56db">${fmt(v._total)}</td>
+      <td style="text-align:right;font-size:11px;color:var(--text2);font-family:'Courier New',monospace">${fmt(avg)}</td>
+    </tr>`;
+  }).join('') +
+  `<tr style="background:#f3f2f1;font-weight:700;position:sticky;bottom:0">
+    <td style="position:sticky;left:0;background:#f3f2f1;z-index:1;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)">Total</td>
+    ${colTotals.map(t => `<td style="text-align:right;font-family:'Courier New',monospace;font-size:12px;color:var(--text1)">${fmt(t)}</td>`).join('')}
+    <td style="text-align:right;font-family:'Courier New',monospace;font-size:12px;background:#e8f0fe;color:#1a56db">${fmt(grandTotal)}</td>
+    <td style="text-align:right;font-family:'Courier New',monospace;font-size:11px;color:var(--text2)">${fmt(activeCols ? grandTotal / activeCols : 0)}</td>
+  </tr>`;
+
+  info.textContent = `${vendors.length} vendors · ${months.length} months · Grand total ${fmt(grandTotal)}`;
+}
+
+function exportLedgerCSV() {
+  const fy  = document.getElementById('ledgerViewFY').value;
+  const { from: fyFrom, to: fyTo } = fyToDateRange(fy);
+  const months = (ledgerData.months || []).filter(m =>
+    !fyFrom || (m >= fyFrom.slice(0,7) && m <= fyTo.slice(0,7))
+  );
+  if (!months.length || !ledgerData.vendors?.length) { toast('No data to export', 'error'); return; }
+
+  const monthHdrs = months.map(m => {
+    const d = new Date(m + '-01');
+    return d.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+  });
+  const cols = ['Vendor', ...monthHdrs, 'Total', 'Avg/Month'];
+  const rows = ledgerData.vendors.map(v => {
+    const total = months.reduce((s, m) => s + (v.monthly?.[m]?.amount || 0), 0);
+    const active = months.filter(m => v.monthly?.[m]?.amount).length;
+    return [
+      v.partner_name,
+      ...months.map(m => Math.round(v.monthly?.[m]?.amount || 0)),
+      Math.round(total),
+      Math.round(active ? total / active : 0)
+    ];
+  });
+  const csv = [cols, ...rows].map(r =>
+    r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })),
+    download: `vendor_monthly_ledger_${fy || 'all'}_${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+  toast(`Exported ${rows.length} vendors`, 'success');
+}
 </script>
 </body>
 </html>
