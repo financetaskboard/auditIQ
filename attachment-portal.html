@@ -239,6 +239,11 @@
 
   /* ── Vendor Pattern Heatmap ── */
   .pattern-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  /* Ledger table sticky header — must use border-collapse:separate */
+  #ledgerTable thead th { position: sticky; top: 0; background: #f3f2f1; z-index: 9; border-bottom: 2px solid #e1dfdd; }
+  #ledgerTable thead th:first-child { left: 0; z-index: 12; }
+  #ledgerTable tbody td:first-child { position: sticky; left: 0; background: #fff; z-index: 1; box-shadow: 2px 0 3px rgba(0,0,0,.05); }
+  #ledgerTable tfoot td:first-child { position: sticky; left: 0; z-index: 2; }
   .pattern-table thead { position: sticky; top: 0; z-index: 10; }
   .pattern-table thead th { position: sticky; top: 0; background: #f3f2f1; }
   .pattern-table th { padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text2); border-bottom: 2px solid var(--border); background: #f3f2f1; white-space: nowrap; }
@@ -1420,7 +1425,7 @@
   </div><!-- /rcChecklistPane -->
 
   <!-- ── MONTHLY LEDGER PANE (hidden until tab switch) ── -->
-  <div id="rcLedgerPane" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+  <div id="rcLedgerPane" style="display:none;flex:1;flex-direction:column;min-height:0">
 
     <!-- Ledger filter bar -->
     <div class="filter-bar" style="background:#f8f7f6;border-bottom:2px solid var(--border);flex-shrink:0">
@@ -1456,9 +1461,9 @@
     </div>
 
     <!-- Ledger table -->
-    <div style="flex:1;overflow:auto;padding:0 0 0 0;position:relative">
+    <div style="flex:1;overflow-y:auto;overflow-x:auto">
       <table id="ledgerTable" style="width:100%;min-width:500px;border-collapse:separate;border-spacing:0;font-size:12px">
-        <thead id="ledgerHead" style="position:sticky;top:0;z-index:10"></thead>
+        <thead id="ledgerHead"></thead>
         <tbody id="ledgerBody"></tbody>
       </table>
       <div id="ledgerEmpty" class="empty-state">
@@ -1751,8 +1756,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     restorePatternState(),
     restoreDeviationState()
   ]);
-  // Render recurring list from localStorage on boot
+  // Render recurring list — localStorage first (instant), then server (reliable)
   try { renderRecurring(); } catch(e){}
+  rcLoadFromServer(); // async: pulls from server DB, re-renders if newer data found
   await restoreTDSState();
   onTDSFYChange();
   restoreWHState();
@@ -4180,14 +4186,42 @@ document.addEventListener('keydown', e => {
 
 const RC_KEY = 'odooAudit_recurring_v1';
 
+// In-memory cache — survives JS but not page refresh
+let _rcMem = null;
+
 function rcLoad() {
-  try { return JSON.parse(localStorage.getItem(RC_KEY) || '[]'); }
-  catch(e) { return []; }
+  if (_rcMem !== null) return _rcMem;
+  try {
+    const raw = localStorage.getItem(RC_KEY);
+    _rcMem = raw ? JSON.parse(raw) : [];
+    return _rcMem;
+  } catch(e) { return []; }
 }
+
 function rcSave(list) {
-  try { localStorage.setItem(RC_KEY, JSON.stringify(list)); } catch(e) {
-    console.warn('rcSave failed:', e);
-  }
+  _rcMem = list;
+  // Save to localStorage (primary)
+  try { localStorage.setItem(RC_KEY, JSON.stringify(list)); } catch(e){}
+  // Also save to server DB (persists across browser clears)
+  fetch(`${PROXY}/api/db/${encodeURIComponent(RC_KEY)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(list)
+  }).catch(() => {}); // fire-and-forget
+}
+
+// On boot: pull from server DB, update localStorage + re-render
+async function rcLoadFromServer() {
+  try {
+    const r = await fetch(`${PROXY}/api/db/${encodeURIComponent(RC_KEY)}`);
+    if (!r.ok) return;
+    const data = await r.json();
+    if (Array.isArray(data) && data.length > 0) {
+      _rcMem = data;
+      localStorage.setItem(RC_KEY, JSON.stringify(data));
+      renderRecurring();
+    }
+  } catch(e) {}
 }
 
 // Statuses set by checkRecurring(), reset to '' on list change
@@ -4569,7 +4603,7 @@ async function fetchLedger() {
   try {
     const r = await fetch(`${PROXY}/api/sync/vendor-pattern`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dateFrom: from, dateTo: to, accountScope: 'vendor_bills', minMonths: min })
+      body: JSON.stringify({ dateFrom: from, dateTo: to, accountScope: 'expense', minMonths: min })
     });
     const res = await r.json();
     if (!res.ok) throw new Error(res.error || 'Failed');
@@ -4595,7 +4629,7 @@ function ldSort(col) {
 
 // ── Amount cell popup ───────────────────────────────────────────
 let _ldPopupTimer = null;
-function showLdPopup(el, amt, cnt, vendor, month) {
+function showLdPopup(el, partnerId, yearMonth, vendor, month) {
   // Toggle: clicking same cell hides popup
   let pop = document.getElementById('ldPopup');
   if (pop && pop._anchor === el && pop.style.display !== 'none') {
@@ -4604,7 +4638,7 @@ function showLdPopup(el, amt, cnt, vendor, month) {
   if (!pop) {
     pop = document.createElement('div');
     pop.id = 'ldPopup';
-    pop.style.cssText = 'position:fixed;z-index:9999;background:#1e293b;color:#fff;padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.8;box-shadow:0 6px 24px rgba(0,0,0,.35);min-width:180px';
+    pop.style.cssText = 'position:fixed;z-index:9999;background:#1e293b;color:#f8fafc;padding:12px 14px;border-radius:10px;font-size:12px;line-height:1.8;box-shadow:0 8px 28px rgba(0,0,0,.4);min-width:240px;max-width:320px';
     document.body.appendChild(pop);
     document.addEventListener('click', e => {
       if (!e.target.closest('[data-ld-cell]') && document.getElementById('ldPopup'))
@@ -4612,24 +4646,52 @@ function showLdPopup(el, amt, cnt, vendor, month) {
     });
   }
   pop._anchor = el;
-  const avg = cnt > 0 ? Math.round(amt / cnt) : 0;
-  const ff = v => v >= 10000000 ? '₹'+(v/10000000).toFixed(2)+'Cr' : v >= 100000 ? '₹'+(v/100000).toFixed(2)+'L' : v >= 1000 ? '₹'+(v/1000).toFixed(1)+'K' : '₹'+Math.round(v).toLocaleString('en-IN');
+
+  // Show loading state immediately
   pop.innerHTML = `<div style="font-weight:700;font-size:13px">${vendor}</div>
-    <div style="color:#94a3b8;font-size:11px;margin-bottom:6px">${month}</div>
-    <div style="display:flex;justify-content:space-between;gap:16px">
-      <span style="color:#94a3b8">Bills</span><span style="font-weight:600">${cnt}</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;gap:16px">
-      <span style="color:#94a3b8">Total</span><span style="font-weight:600">${ff(amt)}</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;gap:16px">
-      <span style="color:#94a3b8">Avg/bill</span><span>${ff(avg)}</span>
-    </div>`;
+    <div style="color:#94a3b8;font-size:11px;margin-bottom:8px">${month}</div>
+    <div style="color:#64748b">Loading bills...</div>`;
   const rect = el.getBoundingClientRect();
   pop.style.display = 'block';
-  const top = rect.top > 180 ? rect.top - 120 : rect.bottom + 8;
+  const top = rect.top > 200 ? rect.top - 200 : rect.bottom + 8;
   pop.style.top  = Math.max(8, top) + 'px';
-  pop.style.left = Math.min(rect.left - 20, window.innerWidth - 200) + 'px';
+  pop.style.left = Math.min(rect.right - 240, window.innerWidth - 260) + 'px';
+
+  // Fetch actual bills from server
+  const ff = v => v >= 10000000 ? '₹'+(v/10000000).toFixed(2)+'Cr' : v >= 100000 ? '₹'+(v/100000).toFixed(2)+'L' : v >= 1000 ? '₹'+(v/1000).toFixed(1)+'K' : '₹'+Math.round(v).toLocaleString('en-IN');
+  fetch(`${PROXY}/api/vendor/bills-for-month`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ partner_id: partnerId, year_month: yearMonth })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!pop || pop._anchor !== el) return; // user clicked away
+    if (!data.ok || !data.bills.length) {
+      pop.innerHTML += '<div style="color:#94a3b8;margin-top:4px">No bills found</div>';
+      return;
+    }
+    const rows = data.bills.map(b => `
+      <div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid #334155">
+        <div>
+          <span style="font-weight:600;color:#e2e8f0">${b.name || '—'}</span>
+          ${b.ref ? `<span style="color:#64748b;font-size:11px;margin-left:6px">${b.ref}</span>` : ''}
+          <div style="color:#64748b;font-size:10px">${b.date || ''}</div>
+        </div>
+        <span style="white-space:nowrap;font-family:'Courier New',monospace;color:#7dd3fc">${ff(b.amount)}</span>
+      </div>`).join('');
+    const total = data.bills.reduce((s, b) => s + b.amount, 0);
+    pop.innerHTML = `<div style="font-weight:700;font-size:13px">${vendor}</div>
+      <div style="color:#94a3b8;font-size:11px;margin-bottom:8px">${month} · ${data.bills.length} bill${data.bills.length>1?'s':''}</div>
+      <div style="max-height:220px;overflow-y:auto">${rows}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid #475569">
+        <span style="color:#94a3b8">Total</span>
+        <span style="font-weight:700;color:#7dd3fc;font-family:'Courier New',monospace">${ff(total)}</span>
+      </div>`;
+  })
+  .catch(() => {
+    if (pop && pop._anchor === el)
+      pop.innerHTML += '<div style="color:#f87171;margin-top:4px">Failed to load</div>';
+  });
 }
 function hideLdPopup() {
   const pop = document.getElementById('ldPopup');
@@ -4716,8 +4778,8 @@ function renderLedger() {
       if (!fmtd) return `<td style="text-align:right;color:#ddd;font-size:12px;padding:5px 8px">—</td>`;
       const mLabel = new Date(m + '-01').toLocaleString('en-IN', { month: 'short', year: 'numeric' });
       return `<td data-ld-cell="1" style="text-align:right;font-family:'Courier New',monospace;font-size:12px;padding:5px 8px;cursor:pointer;user-select:none"
-        onclick="showLdPopup(this,${amt},${cnt},${JSON.stringify(v.partner_name)},${JSON.stringify(mLabel)})"
-        title="Click to see bill details"
+        onclick="showLdPopup(this,${v.partner_id},${JSON.stringify(m)},${JSON.stringify(v.partner_name)},${JSON.stringify(mLabel)})"
+        title="Click to see invoices"
       >${fmtd}</td>`;
     }).join('');
     const avgFmt = fmt(v._avg) || '—';
