@@ -4215,7 +4215,8 @@ async function rcLoadFromServer() {
   try {
     const r = await fetch(`${PROXY}/api/db/${encodeURIComponent(RC_KEY)}`);
     if (!r.ok) return;
-    const data = await r.json();
+    const resp = await r.json();
+    const data = resp.data;   // unwrap { ok, data, source } from server response
     if (Array.isArray(data) && data.length > 0) {
       _rcMem = data;
       localStorage.setItem(RC_KEY, JSON.stringify(data));
