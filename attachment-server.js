@@ -1492,3 +1492,97 @@ app.post('/api/tds/check', async (req, res) => {
   }
 });
 
+
+// ── POST /api/partners/search ──────────────────────────────────
+// Search Odoo vendors by name — used for autocomplete in the
+// Recurring Invoices "Add Vendor" form.
+// Body: { query: "AWS" }
+app.post('/api/partners/search', async (req, res) => {
+  const s = loadSettings();
+  const { query = '' } = req.body;
+  if (!query || query.trim().length < 2)
+    return res.json({ ok:true, partners:[] });
+
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+    const partners = await odooCall(session, 'res.partner', 'search_read',
+      [[['name','ilike', query.trim()], ['active','=',true]]],
+      { fields:['id','name'], limit:15, order:'name asc' }
+    );
+    res.json({ ok:true, partners: partners.map(p => ({ id:p.id, name:p.name })) });
+  } catch(e) {
+    console.error('❌ Partner search error:', e.message);
+    res.status(400).json({ ok:false, error:e.message });
+  }
+});
+
+
+// ── POST /api/recurring/check ──────────────────────────────────
+// Given a list of Odoo partner_ids and a check month (YYYY-MM),
+// returns which partners have posted vendor bills that month and
+// which are missing.
+// Body: { checkYearMonth: "2026-04", partner_ids: [123, 456, ...] }
+app.post('/api/recurring/check', async (req, res) => {
+  const s = loadSettings();
+  const { checkYearMonth, partner_ids = [] } = req.body;
+
+  if (!partner_ids.length)
+    return res.json({ ok:true, results:[], check_month: checkYearMonth });
+
+  // Derive date range for the check month
+  const checkDate  = new Date(checkYearMonth + '-01');
+  const dateFrom   = checkYearMonth + '-01';
+  const lastDay    = new Date(checkDate.getFullYear(), checkDate.getMonth() + 1, 0);
+  const dateTo     = lastDay.toISOString().slice(0, 10);
+
+  console.log(`\n🔄 Recurring check | month: ${checkYearMonth} | vendors: ${partner_ids.length}`);
+
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+
+    // Fetch all posted vendor bills for this month for the given partners
+    const bills = await odooCall(session, 'account.move', 'search_read',
+      [[
+        ['move_type', 'in', ['in_invoice']],
+        ['state', '=', 'posted'],
+        ['invoice_date', '>=', dateFrom],
+        ['invoice_date', '<=', dateTo],
+        ['partner_id', 'in', partner_ids]
+      ]],
+      { fields: ['id', 'name', 'invoice_date', 'partner_id', 'amount_total'], limit: 10000 }
+    );
+
+    // Group by partner_id
+    const found = {}; // partner_id → { count, total_amt }
+    bills.forEach(b => {
+      const pid = b.partner_id?.[0]; if (!pid) return;
+      if (!found[pid]) found[pid] = { count: 0, amount: 0 };
+      found[pid].count++;
+      found[pid].amount += b.amount_total || 0;
+    });
+
+    const results = partner_ids.map(pid => ({
+      partner_id:  pid,
+      status:      found[pid] ? 'Booked ✓' : 'Missing ⚠',
+      found_count: found[pid]?.count  || 0,
+      found_amt:   found[pid]?.amount || 0
+    }));
+
+    const missing = results.filter(r => r.status === 'Missing ⚠').length;
+    console.log(`✅ ${results.length} checked | ${missing} missing | ${results.length - missing} booked`);
+
+    res.json({
+      ok:          true,
+      check_month: checkYearMonth,
+      date_range:  `${dateFrom} → ${dateTo}`,
+      results,
+      total:       results.length,
+      missing,
+      booked:      results.length - missing
+    });
+
+  } catch(e) {
+    console.error('❌ Recurring check error:', e.message);
+    res.status(400).json({ ok:false, error:e.message });
+  }
+});
