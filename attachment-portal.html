@@ -1461,9 +1461,9 @@
     </div>
 
     <!-- Ledger table -->
-    <div style="flex:1;overflow:auto;padding:10px 16px 0">
-      <table class="pattern-table" id="ledgerTable" style="min-width:500px">
-        <thead id="ledgerHead"></thead>
+    <div style="flex:1;overflow:auto;padding:10px 16px 0;position:relative">
+      <table class="pattern-table" id="ledgerTable" style="min-width:500px;border-collapse:separate;border-spacing:0">
+        <thead id="ledgerHead" style="position:sticky;top:0;z-index:10"></thead>
         <tbody id="ledgerBody"></tbody>
       </table>
       <div id="ledgerEmpty" class="empty-state">
@@ -4181,14 +4181,29 @@ document.addEventListener('keydown', e => {
 // List is saved in localStorage so it persists across sessions.
 // ═══════════════════════════════════════════════════════════════
 
-const RC_KEY = 'odooAudit_recurring_v1';
+const RC_KEY = 'recurringList';
 
-// Load list from localStorage
+// Load & save via the app's own persistMeta (Firebase + localStorage fallback)
 function rcLoad() {
-  try { return JSON.parse(localStorage.getItem(RC_KEY) || '[]'); } catch(e) { return []; }
+  try {
+    const raw = localStorage.getItem('odooAudit_recurring_v1') || localStorage.getItem(RC_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
 }
 function rcSave(list) {
-  localStorage.setItem(RC_KEY, JSON.stringify(list));
+  try { localStorage.setItem('odooAudit_recurring_v1', JSON.stringify(list)); } catch(e){}
+  // Also persist via Firebase+localStorage unified system (non-blocking)
+  persistMeta(RC_KEY, list).catch(() => {});
+}
+// On boot, restore from Firebase if available
+async function rcRestoreFromCloud() {
+  try {
+    const cloud = await loadPersisted(RC_KEY);
+    if (Array.isArray(cloud) && cloud.length > 0) {
+      localStorage.setItem('odooAudit_recurring_v1', JSON.stringify(cloud));
+      renderRecurring();
+    }
+  } catch(e){}
 }
 
 // Statuses set by checkRecurring(), reset to '' on list change
@@ -4227,9 +4242,11 @@ function hideAddRecurringRow() {
 }
 
 let rcSearchTimer = null;
+let _rcPartnerCache = []; // index-based cache avoids HTML attribute escaping issues
+
 async function rcSearchVendors(q) {
   const dd = document.getElementById('rcVendorDropdown');
-  document.getElementById('rcPartnerId').value = ''; // clear selection when typing
+  document.getElementById('rcPartnerId').value = '';
   if (!q || q.length < 2) { dd.style.display = 'none'; return; }
   clearTimeout(rcSearchTimer);
   rcSearchTimer = setTimeout(async () => {
@@ -4240,24 +4257,34 @@ async function rcSearchVendors(q) {
       });
       const data = await r.json();
       if (!data.ok || !data.partners.length) {
+        _rcPartnerCache = [];
         dd.innerHTML = '<div style="padding:8px 12px;color:var(--text2)">No vendors found</div>';
         dd.style.display = '';
         return;
       }
-      dd.innerHTML = data.partners.map(p =>
-        `<div style="padding:7px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)"
-          onmousedown="rcSelectVendor(${p.id},${JSON.stringify(p.name.replace(/'/g,"&#39;"))})"
+      _rcPartnerCache = data.partners;
+      dd.innerHTML = data.partners.map((p, i) =>
+        `<div data-idx="${i}" style="padding:7px 12px;cursor:pointer;border-bottom:0.5px solid var(--border)"
           onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''"
         >${x(p.name)}<span style="font-size:11px;color:var(--text2);margin-left:6px">#${p.id}</span></div>`
       ).join('');
+      // Use mousedown (fires before blur) to capture the click
+      dd.querySelectorAll('[data-idx]').forEach(el => {
+        el.addEventListener('mousedown', e => {
+          e.preventDefault(); // prevent input blur
+          rcSelectVendor(parseInt(el.dataset.idx));
+        });
+      });
       dd.style.display = '';
     } catch(e) { dd.style.display = 'none'; }
   }, 280);
 }
 
-function rcSelectVendor(id, name) {
-  document.getElementById('rcPartnerId').value    = id;
-  document.getElementById('rcVendorSearch').value = name;
+function rcSelectVendor(idx) {
+  const p = _rcPartnerCache[idx];
+  if (!p) return;
+  document.getElementById('rcPartnerId').value    = p.id;
+  document.getElementById('rcVendorSearch').value = p.name;
   document.getElementById('rcVendorDropdown').style.display = 'none';
 }
 
@@ -4498,6 +4525,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tab === 'recurring') renderRecurring();
     };
   }
+  // Restore recurring list from cloud after boot
+  setTimeout(rcRestoreFromCloud, 1200);
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -4573,6 +4602,41 @@ async function fetchLedger() {
   }
 }
 
+// ── Ledger sort state ──────────────────────────────────────────
+let ldSortCol = 'total';  // 'vendor' | 'total' | 'avg'
+let ldSortDir = -1;       // -1 = desc, 1 = asc
+
+function ldSort(col) {
+  if (ldSortCol === col) ldSortDir *= -1; else { ldSortCol = col; ldSortDir = -1; }
+  renderLedger();
+}
+
+// ── Amount cell popup ───────────────────────────────────────────
+let _ldPopupTimer = null;
+function showLdPopup(el, amt, cnt, vendor, month) {
+  let pop = document.getElementById('ldPopup');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'ldPopup';
+    pop.style.cssText = 'position:fixed;z-index:9999;background:#1e293b;color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;line-height:1.7;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:opacity .15s';
+    document.body.appendChild(pop);
+  }
+  const avg = cnt > 0 ? Math.round(amt / cnt) : 0;
+  const fmtFull = v => v >= 10000000 ? '₹'+(v/10000000).toFixed(2)+'Cr' : v >= 100000 ? '₹'+(v/100000).toFixed(2)+'L' : v >= 1000 ? '₹'+(v/1000).toFixed(1)+'K' : '₹'+Math.round(v).toLocaleString('en-IN');
+  pop.innerHTML = `<div style="font-weight:600;margin-bottom:4px">${vendor}</div><div style="color:#94a3b8;font-size:11px">${month}</div><hr style="border-color:#334155;margin:5px 0"><div>${cnt} bill${cnt>1?'s':''}</div><div>Total: ${fmtFull(amt)}</div><div style="color:#94a3b8">Avg/bill: ${fmtFull(avg)}</div>`;
+  const rect = el.getBoundingClientRect();
+  pop.style.opacity = '1';
+  pop.style.display = 'block';
+  // Position above or below depending on space
+  const top = rect.top > 160 ? rect.top - 130 : rect.bottom + 6;
+  pop.style.top  = top + 'px';
+  pop.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+}
+function hideLdPopup() {
+  const pop = document.getElementById('ldPopup');
+  if (pop) { pop.style.opacity = '0'; setTimeout(() => { if(pop) pop.style.display='none'; }, 150); }
+}
+
 function renderLedger() {
   const head  = document.getElementById('ledgerHead');
   const body  = document.getElementById('ledgerBody');
@@ -4599,64 +4663,81 @@ function renderLedger() {
   let vendors = [...ledgerData.vendors];
   if (q) vendors = vendors.filter(v => v.partner_name.toLowerCase().includes(q));
 
-  // Sort by total desc
+  // Compute totals & avg for sorting
   vendors = vendors.map(v => {
-    const total = months.reduce((s, m) => s + (v.monthly?.[m]?.amount || 0), 0);
-    return { ...v, _total: total };
-  }).sort((a, b) => b._total - a._total);
+    const total  = months.reduce((s, m) => s + (v.monthly?.[m]?.amount || 0), 0);
+    const active = months.filter(m => v.monthly?.[m]?.amount).length;
+    return { ...v, _total: total, _avg: active ? total / active : 0 };
+  });
+
+  // Sort
+  vendors.sort((a, b) => {
+    if (ldSortCol === 'vendor') return ldSortDir * a.partner_name.localeCompare(b.partner_name);
+    if (ldSortCol === 'avg')    return ldSortDir * (a._avg - b._avg);
+    return ldSortDir * (a._total - b._total); // default: total
+  });
 
   // Compact amount formatter
   const fmt = amt => {
-    if (!amt) return '<span style="color:#ccc">—</span>';
+    if (!amt) return null;
     if (amt >= 10000000) return '₹' + (amt / 10000000).toFixed(2) + 'Cr';
     if (amt >= 100000)   return '₹' + (amt / 100000).toFixed(2) + 'L';
     if (amt >= 1000)     return '₹' + (amt / 1000).toFixed(1) + 'K';
     return '₹' + Math.round(amt).toLocaleString('en-IN');
   };
 
-  // Month header labels  "Apr '26"
+  // Sort arrow helper
+  const arr = col => ldSortCol === col ? (ldSortDir === -1 ? ' ▼' : ' ▲') : '';
+
+  // Month header labels — sticky top
+  const BG_HEAD = '#f3f2f1';
   const monthLabels = months.map(m => {
     const d = new Date(m + '-01');
-    return `<th class="month-th" style="text-align:right;min-width:88px;white-space:nowrap">${d.toLocaleString('en-IN',{month:'short'})} '${String(d.getFullYear()).slice(2)}</th>`;
+    const lbl = d.toLocaleString('en-IN', { month: 'short' }) + " '" + String(d.getFullYear()).slice(2);
+    return `<th style="text-align:right;min-width:88px;white-space:nowrap;position:sticky;top:0;background:${BG_HEAD};z-index:9;font-size:10px;padding:6px 8px">${lbl}</th>`;
   }).join('');
 
   head.innerHTML = `<tr>
-    <th style="min-width:200px;position:sticky;left:0;z-index:11;background:#f3f2f1">Vendor</th>
+    <th onclick="ldSort('vendor')" style="min-width:200px;position:sticky;left:0;top:0;z-index:12;background:${BG_HEAD};cursor:pointer;user-select:none">Vendor${arr('vendor')}</th>
     ${monthLabels}
-    <th style="text-align:right;min-width:90px;background:#e8f0fe;color:#1a56db;white-space:nowrap">Total</th>
-    <th style="text-align:right;min-width:80px;white-space:nowrap">Avg / Mo</th>
+    <th onclick="ldSort('total')" style="text-align:right;min-width:90px;position:sticky;top:0;background:#dbeafe;color:#1a56db;z-index:9;cursor:pointer;user-select:none;white-space:nowrap">Total${arr('total')}</th>
+    <th onclick="ldSort('avg')" style="text-align:right;min-width:80px;position:sticky;top:0;background:${BG_HEAD};z-index:9;cursor:pointer;user-select:none;white-space:nowrap">Avg/Mo${arr('avg')}</th>
   </tr>`;
 
   // Column totals
-  const colTotals   = months.map(m => vendors.reduce((s, v) => s + (v.monthly?.[m]?.amount || 0), 0));
-  const grandTotal  = colTotals.reduce((s, v) => s + v, 0);
-  const activeCols  = colTotals.filter(t => t > 0).length;
+  const colTotals  = months.map(m => vendors.reduce((s, v) => s + (v.monthly?.[m]?.amount || 0), 0));
+  const grandTotal = colTotals.reduce((s, v) => s + v, 0);
+  const activeCols = colTotals.filter(t => t > 0).length;
 
   body.innerHTML = vendors.map(v => {
     const cells = months.map(m => {
-      const amt = v.monthly?.[m]?.amount || 0;
-      const cnt = v.monthly?.[m]?.count  || 0;
-      if (!amt) return `<td style="text-align:right;color:#ddd;font-size:12px">—</td>`;
-      const multi = cnt > 1 ? `<sup style="font-size:9px;color:var(--text2)"> ×${cnt}</sup>` : '';
-      return `<td style="text-align:right;font-family:'Courier New',monospace;font-size:12px" title="${cnt} bill${cnt>1?'s':''}">${fmt(amt)}${multi}</td>`;
+      const amt  = v.monthly?.[m]?.amount || 0;
+      const cnt  = v.monthly?.[m]?.count  || 0;
+      const fmtd = fmt(amt);
+      if (!fmtd) return `<td style="text-align:right;color:#ddd;font-size:12px;padding:5px 8px">—</td>`;
+      const mLabel = new Date(m + '-01').toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+      const multi  = cnt > 1 ? `<span style="font-size:9px;color:var(--text2);margin-left:2px">×${cnt}</span>` : '';
+      return `<td style="text-align:right;font-family:'Courier New',monospace;font-size:12px;padding:5px 8px;cursor:pointer"
+        onmouseenter="showLdPopup(this,${amt},${cnt},${JSON.stringify(v.partner_name)},${JSON.stringify(mLabel)})"
+        onmouseleave="hideLdPopup()"
+      >${fmtd}${multi}</td>`;
     }).join('');
-    const vActive = months.filter(m => v.monthly?.[m]?.amount).length;
-    const avg     = vActive ? v._total / vActive : 0;
+    const avgFmt = fmt(v._avg) || '—';
     return `<tr>
-      <td style="font-weight:600;font-size:13px;position:sticky;left:0;background:#fff;z-index:1;box-shadow:2px 0 3px rgba(0,0,0,.04);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(v.partner_name)}">${x(v.partner_name)}</td>
+      <td style="font-weight:600;font-size:13px;position:sticky;left:0;background:#fff;z-index:1;box-shadow:2px 0 3px rgba(0,0,0,.04);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:5px 8px" title="${v.partner_name}">${x(v.partner_name)}</td>
       ${cells}
-      <td style="text-align:right;font-weight:700;font-family:'Courier New',monospace;font-size:12px;background:#e8f0fe;color:#1a56db">${fmt(v._total)}</td>
-      <td style="text-align:right;font-size:11px;color:var(--text2);font-family:'Courier New',monospace">${fmt(avg)}</td>
+      <td style="text-align:right;font-weight:700;font-family:'Courier New',monospace;font-size:12px;background:#dbeafe;color:#1a56db;padding:5px 8px">${fmt(v._total)||'—'}</td>
+      <td style="text-align:right;font-size:11px;color:var(--text2);font-family:'Courier New',monospace;padding:5px 8px">${avgFmt}</td>
     </tr>`;
   }).join('') +
-  `<tr style="background:#f3f2f1;font-weight:700;position:sticky;bottom:0">
-    <td style="position:sticky;left:0;background:#f3f2f1;z-index:1;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)">Total</td>
-    ${colTotals.map(t => `<td style="text-align:right;font-family:'Courier New',monospace;font-size:12px;color:var(--text1)">${fmt(t)}</td>`).join('')}
-    <td style="text-align:right;font-family:'Courier New',monospace;font-size:12px;background:#e8f0fe;color:#1a56db">${fmt(grandTotal)}</td>
-    <td style="text-align:right;font-family:'Courier New',monospace;font-size:11px;color:var(--text2)">${fmt(activeCols ? grandTotal / activeCols : 0)}</td>
+  `<tr style="background:#f3f2f1;font-weight:700;position:sticky;bottom:0;z-index:8">
+    <td style="position:sticky;left:0;background:#f3f2f1;z-index:9;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);padding:5px 8px">Total</td>
+    ${colTotals.map(t => `<td style="text-align:right;font-family:'Courier New',monospace;font-size:12px;color:var(--text1);padding:5px 8px">${fmt(t)||'—'}</td>`).join('')}
+    <td style="text-align:right;font-family:'Courier New',monospace;font-size:12px;background:#dbeafe;color:#1a56db;padding:5px 8px">${fmt(grandTotal)||'—'}</td>
+    <td style="text-align:right;font-family:'Courier New',monospace;font-size:11px;color:var(--text2);padding:5px 8px">${fmt(activeCols ? grandTotal / activeCols : 0)||'—'}</td>
   </tr>`;
 
-  info.textContent = `${vendors.length} vendors · ${months.length} months · Grand total ${fmt(grandTotal)}`;
+  info.textContent = `${vendors.length} vendors · ${months.length} months · Grand total ${fmt(grandTotal)||'₹0'}`;
 }
 
 function exportLedgerCSV() {
