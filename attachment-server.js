@@ -751,13 +751,26 @@ app.post('/api/sync/account-deviation', async (req, res) => {
   }
 });
 
-// ── Firebase REST proxy ───────────────────────────────────────
-// All Firebase access goes through here so the secret never reaches the browser.
-// Requires env vars: FIREBASE_DB_URL and FIREBASE_SECRET
+// ── Data persistence: Firebase (cloud) or local file (fallback) ──
+// Firebase is used when FIREBASE_DB_URL + FIREBASE_SECRET are configured.
+// Otherwise data is saved to a local JSON file next to settings.json.
+// Local file persists across page refreshes and server restarts;
+// it is lost only when Render redeploys (a new container is created).
+
+const LOCAL_DB_FILE = path.join(__dirname, 'local-db.json');
+
+function localDbRead() {
+  try { return JSON.parse(fs.readFileSync(LOCAL_DB_FILE, 'utf8')); }
+  catch(e) { return {}; }
+}
+function localDbWrite(store) {
+  try { fs.writeFileSync(LOCAL_DB_FILE, JSON.stringify(store, null, 2)); }
+  catch(e) { console.error('localDb write error:', e.message); }
+}
 
 function fbUrl(key) {
   const s = loadSettings();
-  const base = (s.firebaseDbUrl || '').replace(/\/+$/, '');
+  const base   = (s.firebaseDbUrl || '').replace(/\/+$/, '');
   const secret = s.firebaseSecret || '';
   if (!base || !secret) return null;
   return { url: `${base}/auditiq/${key}.json?auth=${secret}` };
@@ -765,48 +778,65 @@ function fbUrl(key) {
 
 // GET /api/db/:key
 app.get('/api/db/:key', async (req, res) => {
-  const fb = fbUrl(req.params.key);
-  if (!fb) return res.json({ ok: true, data: null, source: 'no-firebase' });
-  try {
-    const r = await fetch(fb.url);
-    if (!r.ok) throw new Error('Firebase ' + r.status);
-    const data = await r.json();
-    res.json({ ok: true, data, source: 'firebase' });
-  } catch(e) {
-    console.error('Firebase read error:', e.message);
-    res.status(500).json({ ok: false, error: e.message });
+  const key = req.params.key;
+  const fb  = fbUrl(key);
+  if (fb) {
+    try {
+      const r = await fetch(fb.url);
+      if (!r.ok) throw new Error('Firebase ' + r.status);
+      const data = await r.json();
+      return res.json({ ok: true, data, source: 'firebase' });
+    } catch(e) {
+      console.error('Firebase read error:', e.message);
+      // fall through to local file
+    }
   }
+  // Local file fallback
+  const store = localDbRead();
+  res.json({ ok: true, data: store[key] ?? null, source: 'local-file' });
 });
 
 // POST /api/db/:key  (body = JSON to store)
 app.post('/api/db/:key', async (req, res) => {
-  const fb = fbUrl(req.params.key);
-  if (!fb) return res.json({ ok: true, source: 'no-firebase', note: 'Firebase not configured' });
-  try {
-    const r = await fetch(fb.url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body)
-    });
-    if (!r.ok) throw new Error('Firebase ' + r.status);
-    res.json({ ok: true, source: 'firebase' });
-  } catch(e) {
-    console.error('Firebase write error:', e.message);
-    res.status(500).json({ ok: false, error: e.message });
+  const key  = req.params.key;
+  const body = req.body;
+  const fb   = fbUrl(key);
+  if (fb) {
+    try {
+      const r = await fetch(fb.url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error('Firebase ' + r.status);
+      return res.json({ ok: true, source: 'firebase' });
+    } catch(e) {
+      console.error('Firebase write error:', e.message);
+      // fall through to local file
+    }
   }
+  // Local file fallback
+  const store = localDbRead();
+  store[key]  = body;
+  localDbWrite(store);
+  res.json({ ok: true, source: 'local-file' });
 });
 
 // DELETE /api/db/:key
 app.delete('/api/db/:key', async (req, res) => {
-  const fb = fbUrl(req.params.key);
-  if (!fb) return res.json({ ok: true, source: 'no-firebase' });
-  try {
-    const r = await fetch(fb.url, { method: 'DELETE' });
-    if (!r.ok) throw new Error('Firebase ' + r.status);
-    res.json({ ok: true, source: 'firebase' });
-  } catch(e) {
-    res.status(500).json({ ok: false, error: e.message });
+  const key = req.params.key;
+  const fb  = fbUrl(key);
+  if (fb) {
+    try {
+      const r = await fetch(fb.url, { method: 'DELETE' });
+      if (!r.ok) throw new Error('Firebase ' + r.status);
+      return res.json({ ok: true, source: 'firebase' });
+    } catch(e) { /* fall through */ }
   }
+  const store = localDbRead();
+  delete store[key];
+  localDbWrite(store);
+  res.json({ ok: true, source: 'local-file' });
 });
 
 // GET /api/db-status  — tells the client if Firebase is configured
@@ -1584,5 +1614,47 @@ app.post('/api/recurring/check', async (req, res) => {
   } catch(e) {
     console.error('❌ Recurring check error:', e.message);
     res.status(400).json({ ok:false, error:e.message });
+  }
+});
+
+
+// ── POST /api/vendor/bills-for-month ──────────────────────────
+// Returns individual bills for a vendor in a specific month.
+// Used by the Monthly Ledger popup to show invoice numbers.
+// Body: { partner_id: 123, year_month: "2026-04" }
+app.post('/api/vendor/bills-for-month', async (req, res) => {
+  const s = loadSettings();
+  const { partner_id, year_month } = req.body;
+  if (!partner_id || !year_month)
+    return res.json({ ok: true, bills: [] });
+
+  const dateFrom = year_month + '-01';
+  const lastDay  = new Date(year_month.split('-')[0], year_month.split('-')[1], 0);
+  const dateTo   = lastDay.toISOString().slice(0, 10);
+
+  try {
+    const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
+    const bills = await odooCall(session, 'account.move', 'search_read',
+      [[
+        ['move_type', 'in', ['in_invoice', 'in_refund']],
+        ['state', '=', 'posted'],
+        ['invoice_date', '>=', dateFrom],
+        ['invoice_date', '<=', dateTo],
+        ['partner_id', '=', partner_id]
+      ]],
+      { fields: ['id', 'name', 'ref', 'invoice_date', 'amount_total'], limit: 50, order: 'invoice_date asc' }
+    );
+    res.json({
+      ok: true,
+      bills: bills.map(b => ({
+        id:     b.id,
+        name:   b.name,
+        ref:    b.ref || '',
+        date:   b.invoice_date,
+        amount: b.amount_total
+      }))
+    });
+  } catch(e) {
+    res.status(400).json({ ok: false, error: e.message });
   }
 });
