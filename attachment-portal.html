@@ -1568,6 +1568,9 @@
         <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
         Fetch from Odoo
       </button>
+      <button class="topbar-btn" onclick="(function(){const p=document.getElementById('plPastePanel');p.style.display=p.style.display===''?'none':''})()" style="font-size:11px;border-color:#ffe082;color:#7a4f00;background:#fff8e1" title="Import GL balances by pasting Odoo report">
+        📋 Paste GL Data
+      </button>
       <button class="topbar-btn primary" onclick="exportPLCSV()">
         <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
         Export CSV
@@ -1589,6 +1592,25 @@
 
     <!-- Info alert -->
     <div class="alert alert-info" id="plInfoBox" style="margin-bottom:8px;padding:7px 12px;font-size:12px">
+
+    <!-- Paste GL Import Panel -->
+    <div id="plPastePanel" style="display:none;background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:10px 14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <svg viewBox="0 0 16 16" fill="#d18000" width="14" height="14"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5H3.5A1.5 1.5 0 0 0 2 3h12a1.5 1.5 0 0 0-1.5-1.5H11A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>
+        <span style="font-size:12px;font-weight:700;color:#7a4f00">Paste GL Balances</span>
+        <span style="font-size:11px;color:#a0522d">— Live fetch unavailable · paste Odoo GL export below</span>
+        <button onclick="document.getElementById('plPastePanel').style.display='none'" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:14px;color:#999" title="Dismiss">✕</button>
+      </div>
+      <div style="font-size:10px;color:#a0522d;margin-bottom:6px">
+        Format: one line per account — <code style="background:#fff3cd;padding:1px 4px;border-radius:3px">410001 Advertisement 352015.32</code> &nbsp;or&nbsp; <code style="background:#fff3cd;padding:1px 4px;border-radius:3px">Code[TAB]Name[TAB]Amount</code>
+      </div>
+      <textarea id="plPasteArea" rows="7" style="width:100%;font-size:11px;font-family:monospace;border:1px solid #ffe082;border-radius:4px;padding:6px;resize:vertical;box-sizing:border-box" placeholder="410001 Advertisement 352015.32&#10;410003 Bad Debts Written Off 4667.45&#10;410004 Bank Charges 13807.73&#10;410006 Broadband Expenses 14992.90&#10;..."></textarea>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="topbar-btn primary" onclick="importPasteGL()" style="font-size:11px;height:26px;padding:0 12px;background:var(--primary);color:#fff;border-color:var(--primary)">Import</button>
+        <button class="topbar-btn" onclick="document.getElementById('plPasteArea').value=''" style="font-size:11px;height:26px;padding:0 10px">Clear</button>
+        <span style="font-size:10px;color:#a0522d;align-self:center">Amounts distributed to current month column</span>
+      </div>
+    </div>
       <svg viewBox="0 0 16 16" fill="currentColor" style="width:14px;height:14px;flex-shrink:0"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
       <span>Click <strong>Fetch from Odoo</strong> to load live expense data, or view the <strong>demo data</strong> already loaded below. Filters apply to both.</span>
     </div>
@@ -5255,43 +5277,93 @@ async function fetchPLExpenses() {
   const fy   = parseInt((document.getElementById('pl-fy-sel')||{value:'2026'}).value)||2026;
   const from = (fy-1)+'-04-01', to = fy+'-03-31';
   setLoading(true);
-  toast('Fetching P&L expense data from Odoo\u2026', 'info');
+  toast('Fetching GL account data from Odoo\u2026', 'info');
   const info = document.getElementById('plInfoBadge');
   if (info) { info.textContent = '\u23f3 Fetching\u2026'; info.style.display = ''; }
   try {
-    const r = await fetch(PROXY + '/api/sync/vendor-pattern', {
+    const r = await fetch(PROXY + '/api/sync/pl-expenses', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ dateFrom: from, dateTo: to, accountScope: 'expense', minMonths: 1 })
+      body: JSON.stringify({ dateFrom: from, dateTo: to, accountScope: 'expense' })
     });
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' \u2014 /api/sync/pl-expenses not found on server');
     const res = await r.json();
     if (!res.ok) throw new Error(res.error || 'Sync failed');
-    if (res.vendors && res.vendors.length) {
-      const mkMap = {4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec',1:'Jan',2:'Feb',3:'Mar'};
-      PL_DATA = res.vendors.map(function(v) {
-        const row = { account: v.partner_name, code: '\u2014', mis: 'Indirect', tag: 'Opex', total: 0 };
-        PL_MONTHS.forEach(function(m){ row[m.key] = 0; });
-        Object.entries(v.monthly||{}).forEach(function(e) {
-          const mo = parseInt(e[0].split('-')[1]);
-          const k  = mkMap[mo];
-          if (k) row[k] = Math.round(e[1].amount||0);
-        });
-        row.total = PL_MONTHS.reduce(function(s,m){return s+(row[m.key]||0);},0);
-        return row;
+
+    // Expected: { accounts: [{ code, name, mis_group, tag, monthly: {"2026-04": amount} }] }
+    const mkMap = {4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec',1:'Jan',2:'Feb',3:'Mar'};
+    PL_DATA = (res.accounts || []).map(function(a) {
+      const row = { account: a.name||a.account_name||'', code: a.code||a.account_code||'\u2014',
+                    mis: a.mis_group||'Indirect', tag: a.tag||'Opex', total: 0 };
+      PL_MONTHS.forEach(function(m){ row[m.key] = 0; });
+      Object.entries(a.monthly||{}).forEach(function(e) {
+        const mo = parseInt(e[0].split('-')[1]);
+        const k  = mkMap[mo];
+        if (k) row[k] = Math.round(typeof e[1]==='object'?(e[1].amount||0):(e[1]||0));
       });
-      if (info) { info.textContent = '\u2705 ' + PL_DATA.length + ' accounts loaded from Odoo'; }
-      document.getElementById('plFetchTime').textContent = 'Fetched at ' + new Date().toLocaleTimeString('en-IN');
-      document.getElementById('plInfoBox').style.display = 'none';
-      toast('P&L loaded \u2014 ' + PL_DATA.length + ' expense accounts', 'success');
-    } else {
-      if (info) { info.textContent = '\u26a0 No data returned \u2014 showing demo'; }
-      toast('No expense data from Odoo \u2014 showing demo data', 'info');
-    }
+      row.total = PL_MONTHS.reduce(function(s,m){return s+(row[m.key]||0);},0);
+      return row;
+    });
+
+    if (info) { info.textContent = '\u2705 ' + PL_DATA.length + ' GL accounts loaded'; }
+    document.getElementById('plFetchTime').textContent = 'Fetched at ' + new Date().toLocaleTimeString('en-IN');
+    document.getElementById('plInfoBox').style.display = 'none';
+    const pp = document.getElementById('plPastePanel'); if (pp) pp.style.display = 'none';
+    toast('P&L loaded \u2014 ' + PL_DATA.length + ' GL accounts', 'success');
     renderPLExpenses();
   } catch(e) {
-    if (info) { info.textContent = '\u26a0 ' + e.message + ' \u2014 showing demo data'; }
-    toast('Fetch failed: ' + e.message, 'error');
+    if (info) { info.textContent = '\u26a0 ' + e.message; }
+    toast('Odoo fetch failed \u2014 use \u201cPaste GL Data\u201d to import manually', 'error');
+    const pp = document.getElementById('plPastePanel'); if (pp) pp.style.display = '';
     renderPLExpenses();
   } finally { setLoading(false); }
+}
+
+// ── Paste GL Import ───────────────────────────────────────────────────────────
+// Parses lines like:  "410001 Advertisement 352,015.32"
+// or tab/space separated with account code, name, amount
+// Pasted data is annual/YTD totals — goes into row.total ONLY.
+// Monthly columns stay 0 (shown as "—") which is honest; we have no breakdown.
+function parsePasteGL(raw) {
+  const rows = [];
+  raw.split('\n').forEach(function(line) {
+    line = line.trim(); if (!line) return;
+    let code='', name='', amt=0;
+    // Tab-separated: code \t name \t amount
+    const tabs = line.split('\t');
+    if (tabs.length >= 3) {
+      code = tabs[0].trim(); name = tabs[1].trim();
+      amt  = parseFloat(tabs[2].replace(/[^\d.\-]/g,'')) || 0;
+    } else {
+      // "410001 Advertisement 352,015.32"  (space-separated, amount at end)
+      const m = line.match(/^(\d{4,10})\s+(.+?)\s+([-\d,\.]+)\s*$/);
+      if (!m) return;
+      code = m[1]; name = m[2].trim();
+      amt  = parseFloat(m[3].replace(/,/g,'')) || 0;
+    }
+    if (!name) return;
+    const row = { account: name, code: code, mis: 'Indirect', tag: 'Opex', total: 0 };
+    // All monthly columns = 0 (no monthly breakdown in pasted YTD data)
+    PL_MONTHS.forEach(function(m){ row[m.key] = 0; });
+    // Annual total goes only into row.total
+    row.total = Math.round(amt);
+    rows.push(row);
+  });
+  return rows;
+}
+
+function importPasteGL() {
+  const raw = (document.getElementById('plPasteArea')||{value:''}).value.trim();
+  if (!raw) { toast('Paste GL data first', 'error'); return; }
+  const parsed = parsePasteGL(raw);
+  if (!parsed.length) { toast('No valid rows \u2014 expected: "410001 Account Name 123456.78"', 'error'); return; }
+  PL_DATA = parsed;
+  const pp = document.getElementById('plPastePanel'); if (pp) pp.style.display = 'none';
+  document.getElementById('plInfoBox').style.display = 'none';
+  const info = document.getElementById('plInfoBadge');
+  if (info) { info.textContent = '\ud83d\udccb ' + PL_DATA.length + ' accounts imported'; info.style.display = ''; }
+  document.getElementById('plFetchTime').textContent = 'Pasted at ' + new Date().toLocaleTimeString('en-IN');
+  toast('\u2705 ' + PL_DATA.length + ' GL accounts imported', 'success');
+  renderPLExpenses();
 }
 
 function exportPLCSV() {
