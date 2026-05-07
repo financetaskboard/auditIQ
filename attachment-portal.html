@@ -1610,14 +1610,28 @@
     </div>
 
     <!-- Info alert -->
-    <div class="alert alert-info" id="plInfoBox" style="margin-bottom:8px;padding:7px 12px;font-size:12px">
+    <div class="alert alert-info" id="plInfoBox" style="margin-bottom:8px;padding:7px 12px;font-size:12px;display:flex;align-items:flex-start;gap:8px">
+      <svg viewBox="0 0 16 16" fill="currentColor" style="width:14px;height:14px;flex-shrink:0;margin-top:1px"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
+      <span>Click <strong>Fetch from Odoo</strong> to load live expense data, or use <strong>📋 Paste GL Data</strong> to import manually. Filters and demo data are available below.</span>
+    </div>
+
+    <!-- Fetch error banner (shown on 404 / server error) -->
+    <div id="plErrorBanner" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:10px 14px;margin-bottom:8px;font-size:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <svg viewBox="0 0 16 16" fill="#dc2626" width="14" height="14"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>
+        <strong style="color:#dc2626" id="plErrorTitle">Odoo fetch failed</strong>
+        <button onclick="document.getElementById('plErrorBanner').style.display='none'" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:14px;color:#999" title="Dismiss">✕</button>
+      </div>
+      <p id="plErrorMsg" style="color:#7f1d1d;margin:0 0 6px 22px"></p>
+      <p style="color:#991b1b;margin:0 0 0 22px;font-size:11px">👉 Use <strong>📋 Paste GL Data</strong> above to import your GL balances manually — paste the export from <em>Odoo → Accounting → GL Report</em>.</p>
+    </div>
 
     <!-- Paste GL Import Panel -->
     <div id="plPastePanel" style="display:none;background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:10px 14px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <svg viewBox="0 0 16 16" fill="#d18000" width="14" height="14"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5H3.5A1.5 1.5 0 0 0 2 3h12a1.5 1.5 0 0 0-1.5-1.5H11A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>
         <span style="font-size:12px;font-weight:700;color:#7a4f00">Paste GL Balances</span>
-        <span style="font-size:11px;color:#a0522d">— Live fetch unavailable · paste Odoo GL export below</span>
+        <span style="font-size:11px;color:#a0522d">— paste your Odoo GL export below</span>
         <button onclick="document.getElementById('plPastePanel').style.display='none'" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:14px;color:#999" title="Dismiss">✕</button>
       </div>
       <div style="font-size:10px;color:#a0522d;margin-bottom:6px">
@@ -1629,9 +1643,6 @@
         <button class="topbar-btn" onclick="document.getElementById('plPasteArea').value=''" style="font-size:11px;height:26px;padding:0 10px">Clear</button>
         <span style="font-size:10px;color:#a0522d;align-self:center">Amounts distributed to current month column</span>
       </div>
-    </div>
-      <svg viewBox="0 0 16 16" fill="currentColor" style="width:14px;height:14px;flex-shrink:0"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
-      <span>Click <strong>Fetch from Odoo</strong> to load live expense data, or view the <strong>demo data</strong> already loaded below. Filters apply to both.</span>
     </div>
 
     <!-- Filter / search bar -->
@@ -2621,6 +2632,18 @@ function goPage(p) {
 
 function x(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// ── Shared helper: builds "VendorName_BillNo" folder name for ZIP ──
+// Falls back gracefully if partner or bill_ref are missing.
+function buildAttFolderName(entry) {
+  const safe = s => String(s || '').trim().replace(/[\/\:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim();
+  const vendor  = safe(entry.partner)  || 'Unknown_Vendor';
+  const billRef = safe(entry.bill_ref) || safe(entry.entry_no) || 'No_Ref';
+  // Truncate each part so the full path stays under 200 chars
+  const v = vendor.substring(0, 60);
+  const b = billRef.substring(0, 40);
+  return `${v}_${b}`;
+}
+
 // ── Download All Attachments as ZIP ──────────────────────────
 async function downloadAllAttachments() {
   if (!filtered.length) { toast('No entries to download','error'); return; }
@@ -2655,13 +2678,14 @@ async function downloadAllAttachments() {
 
     btn.innerHTML = '📦 Zipping…';
 
-    // Build ZIP using JSZip
+    // Build ZIP — YYYY-MM / VendorName_BillNo / filename
     const zip = new JSZip();
-    // Group by entry_no folder for easy navigation
     res.attachments.forEach(att => {
-      const safeEntry = (att.entry_no || 'Unknown').replace(/[\/\:*?"<>|]/g, '_');
-      const safeFile  = (att.filename  || 'file').replace(/[\/\:*?"<>|]/g, '_');
-      zip.file(`${safeEntry}/${safeFile}`, att.data_b64, { base64: true });
+      const entry       = toFetch.find(e => e.odoo_id === att.move_id) || {};
+      const monthFolder = (entry.date || '').substring(0, 7) || 'Unknown_Month';
+      const folderName  = buildAttFolderName(entry);
+      const safeFile    = (att.filename || 'file').replace(/[\/\:*?"<>|]/g, '_');
+      zip.file(`${monthFolder}/${folderName}/${safeFile}`, att.data_b64, { base64: true });
     });
 
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
@@ -2771,14 +2795,14 @@ async function downloadByPeriod() {
 
     btn.innerHTML = '📦 Zipping…';
 
-    // Build ZIP — folder structure: YYYY-MM / EntryNo / filename
+    // Build ZIP — YYYY-MM / VendorName_BillNo / filename
     const zip = new JSZip();
     res.attachments.forEach(att => {
       const entry       = toFetch.find(e => e.odoo_id === att.move_id) || {};
-      const monthFolder = (entry.date || '').substring(0,7) || 'Unknown_Month'; // e.g. "2025-06"
-      const safeEntry   = (att.entry_no || 'Unknown').replace(/[\/\:*?"<>|]/g, '_');
-      const safeFile    = (att.filename  || 'file').replace(/[\/\:*?"<>|]/g, '_');
-      zip.file(`${monthFolder}/${safeEntry}/${safeFile}`, att.data_b64, { base64: true });
+      const monthFolder = (entry.date || '').substring(0, 7) || 'Unknown_Month';
+      const folderName  = buildAttFolderName(entry);
+      const safeFile    = (att.filename || 'file').replace(/[\/\:*?"<>|]/g, '_');
+      zip.file(`${monthFolder}/${folderName}/${safeFile}`, att.data_b64, { base64: true });
     });
 
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
@@ -5420,13 +5444,23 @@ async function fetchPLExpenses() {
   setLoading(true);
   toast('Fetching GL account data from Odoo\u2026', 'info');
   const info = document.getElementById('plInfoBadge');
-  if (info) { info.textContent = '\u23f3 Fetching\u2026'; info.style.display = ''; }
+  if (info) { info.textContent = '\u23f3 Fetching\u2026'; info.style.display = 'flex'; }
+  // Hide any previous error banner while fetching
+  const errBanner = document.getElementById('plErrorBanner');
+  if (errBanner) errBanner.style.display = 'none';
   try {
     const r = await fetch(PROXY + '/api/sync/pl-expenses', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ dateFrom: from, dateTo: to, accountScope: 'expense' })
     });
-    if (!r.ok) throw new Error('HTTP ' + r.status + ' \u2014 /api/sync/pl-expenses not found on server');
+    if (!r.ok) {
+      const is404 = r.status === 404;
+      throw Object.assign(new Error(
+        is404
+          ? 'The /api/sync/pl-expenses endpoint is not yet deployed on your server. Use \u201cPaste GL Data\u201d to import manually.'
+          : 'HTTP ' + r.status + ' \u2014 server returned an error from /api/sync/pl-expenses'
+      ), { status: r.status });
+    }
     const res = await r.json();
     if (!res.ok) throw new Error(res.error || 'Sync failed');
 
@@ -5452,9 +5486,16 @@ async function fetchPLExpenses() {
     toast('P&L loaded \u2014 ' + PL_DATA.length + ' GL accounts', 'success');
     renderPLExpenses();
   } catch(e) {
-    if (info) { info.textContent = '\u26a0 ' + e.message; }
-    toast('Odoo fetch failed \u2014 use \u201cPaste GL Data\u201d to import manually', 'error');
+    // Show the friendly error banner
+    const title = document.getElementById('plErrorTitle');
+    const msg   = document.getElementById('plErrorMsg');
+    if (title) title.textContent = e.status === 404 ? '\u26a0 Endpoint not found on server (404)' : '\u26a0 Odoo fetch failed';
+    if (msg)   msg.textContent   = e.message;
+    if (errBanner) errBanner.style.display = 'block';
+    if (info)  { info.textContent = '\u26a0 Fetch failed'; info.style.display = 'flex'; }
+    // Auto-open paste panel so user can continue working
     const pp = document.getElementById('plPastePanel'); if (pp) pp.style.display = '';
+    toast('Odoo fetch failed \u2014 use \u201cPaste GL Data\u201d to import manually', 'error');
     renderPLExpenses();
   } finally { setLoading(false); }
 }
