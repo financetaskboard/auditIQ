@@ -553,10 +553,29 @@
           </div>
           <div class="topbar-sep"></div>
           <!-- Download All — only visible on "Has Attachment" view -->
-          <button class="topbar-btn" id="btnDownloadAll" onclick="downloadAllAttachments()" style="display:none;color:var(--success);border-color:var(--success)" title="Download all attachments for visible entries as ZIP">
+          <button class="topbar-btn" id="btnDownloadAll" onclick="downloadAllAttachments()" style="display:none;color:var(--success);border-color:var(--success)" title="Download all attachments for visible entries as ZIP (max 50)">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
             Download All as ZIP
           </button>
+
+          <!-- Period Download group — visible only on "Has Attachment" view -->
+          <div id="periodDownloadGroup" style="display:none;align-items:center;gap:5px;background:#f0fdf4;border:1px solid #86efac;border-radius:2px;padding:3px 8px;">
+            <svg viewBox="0 0 16 16" fill="#16a34a" style="width:13px;height:13px;flex-shrink:0"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg>
+            <span style="font-size:11px;font-weight:700;color:#15803d;white-space:nowrap">Download by Period:</span>
+            <input type="month" id="dlPeriodFrom" class="fl-input" style="height:26px;width:130px;font-size:12px;padding:0 6px;border-color:#86efac" title="From month" />
+            <span style="font-size:11px;color:#15803d">→</span>
+            <input type="month" id="dlPeriodTo" class="fl-input" style="height:26px;width:130px;font-size:12px;padding:0 6px;border-color:#86efac" title="To month" />
+            <div style="display:flex;gap:3px;margin-left:2px">
+              <button class="period-btn" style="height:24px;font-size:11px;padding:0 7px;border-color:#86efac;color:#15803d" onclick="setDlPeriodShortcut('thisMonth')" title="Current month">This Mo</button>
+              <button class="period-btn" style="height:24px;font-size:11px;padding:0 7px;border-color:#86efac;color:#15803d" onclick="setDlPeriodShortcut('lastMonth')" title="Previous month">Last Mo</button>
+              <button class="period-btn" style="height:24px;font-size:11px;padding:0 7px;border-color:#86efac;color:#15803d" onclick="setDlPeriodShortcut('thisQuarter')" title="Current quarter (3 months)">Qtr</button>
+              <button class="period-btn" style="height:24px;font-size:11px;padding:0 7px;border-color:#86efac;color:#15803d" onclick="setDlPeriodShortcut('thisFY')" title="Full financial year (Apr–Mar)">FY</button>
+            </div>
+            <button class="topbar-btn" id="btnDownloadPeriod" onclick="downloadByPeriod()" style="height:26px;background:#16a34a;color:#fff;border-color:#16a34a;font-size:12px;padding:0 10px;gap:5px;white-space:nowrap" title="Download attachments for selected period as ZIP">
+              <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+              📥 Download ZIP
+            </button>
+          </div>
           <button class="topbar-btn primary" onclick="exportCSV()">
             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
             Export CSV
@@ -2455,8 +2474,12 @@ function setAttFilter(mode) {
   document.getElementById('togMissing').className = 'att-toggle-btn' + (mode==='missing'?' active-missing':'');
   document.getElementById('togHas').className     = 'att-toggle-btn' + (mode==='has'    ?' active-has':'');
   document.getElementById('togAll').className     = 'att-toggle-btn' + (mode==='all'    ?' active-all':'');
-  // Show Download All only for "Has Attachment" view
-  document.getElementById('btnDownloadAll').style.display = mode === 'has' ? 'flex' : 'none';
+  // Show Download All and Period Download only for "Has Attachment" view
+  const showDl = mode === 'has';
+  document.getElementById('btnDownloadAll').style.display = showDl ? 'flex' : 'none';
+  document.getElementById('periodDownloadGroup').style.display = showDl ? 'flex' : 'none';
+  // Pre-fill period inputs with current month on first show
+  if (showDl) initDlPeriodDefaults();
   applyFilter();
 }
 
@@ -2654,6 +2677,124 @@ async function downloadAllAttachments() {
     console.error(e);
   } finally {
     btn.innerHTML = origText; btn.disabled = false;
+  }
+}
+
+// ── Download by Period (month-wise) ──────────────────────────
+function initDlPeriodDefaults() {
+  const fromEl = document.getElementById('dlPeriodFrom');
+  const toEl   = document.getElementById('dlPeriodTo');
+  // Only set defaults if still empty
+  if (fromEl && !fromEl.value) {
+    const now = new Date();
+    const ym  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    fromEl.value = ym;
+    toEl.value   = ym;
+  }
+}
+
+function setDlPeriodShortcut(p) {
+  const fromEl = document.getElementById('dlPeriodFrom');
+  const toEl   = document.getElementById('dlPeriodTo');
+  const now    = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1; // 1-based
+  const pad = n => String(n).padStart(2,'0');
+  const ym  = (yr, mo) => `${yr}-${pad(mo)}`;
+
+  if (p === 'thisMonth') {
+    fromEl.value = toEl.value = ym(y, m);
+  } else if (p === 'lastMonth') {
+    const lm = m === 1 ? 12 : m - 1;
+    const ly = m === 1 ? y - 1 : y;
+    fromEl.value = toEl.value = ym(ly, lm);
+  } else if (p === 'thisQuarter') {
+    // Indian FY quarters: Apr-Jun, Jul-Sep, Oct-Dec, Jan-Mar
+    let qStart, qEnd;
+    if (m >= 4 && m <= 6)       { qStart = ym(y,4);  qEnd = ym(y,6);   }
+    else if (m >= 7 && m <= 9)  { qStart = ym(y,7);  qEnd = ym(y,9);   }
+    else if (m >= 10 && m <= 12){ qStart = ym(y,10); qEnd = ym(y,12);  }
+    else                        { qStart = ym(y,1);  qEnd = ym(y,3);   }
+    fromEl.value = qStart; toEl.value = qEnd;
+  } else if (p === 'thisFY') {
+    // Indian FY: Apr to Mar
+    const fyStart = m >= 4 ? y : y - 1;
+    fromEl.value = ym(fyStart, 4);
+    toEl.value   = ym(fyStart + 1, 3);
+  }
+}
+
+async function downloadByPeriod() {
+  const fromEl = document.getElementById('dlPeriodFrom');
+  const toEl   = document.getElementById('dlPeriodTo');
+  const fromM  = fromEl?.value;  // e.g. "2025-06"
+  const toM    = toEl?.value;    // e.g. "2025-08"
+
+  if (!fromM || !toM) { toast('Select a From and To month first', 'error'); return; }
+  if (fromM > toM)    { toast('From month must be before To month', 'error'); return; }
+
+  // Convert month strings to full date range (first day of fromM → last day of toM)
+  const fromDate = fromM + '-01';
+  const [toY, toMo] = toM.split('-').map(Number);
+  const lastDay = new Date(toY, toMo, 0);  // day 0 of next month = last day of this month
+  const toDate  = `${lastDay.getFullYear()}-${String(lastDay.getMonth()+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
+
+  // Filter allDataWithAtt by the selected date range
+  const inRange = allDataWithAtt.filter(r => r.date >= fromDate && r.date <= toDate);
+
+  if (!inRange.length) {
+    toast(`No entries with attachments found between ${fromDate} and ${toDate}`, 'error');
+    return;
+  }
+
+  const limit   = 100;
+  const toFetch = inRange.slice(0, limit);
+  const extra   = inRange.length > limit ? ` (capped at ${limit} — ${inRange.length - limit} skipped)` : '';
+  toast(`Fetching ${toFetch.length} attachment${toFetch.length>1?'s':''} for ${fromM} → ${toM}${extra}…`, 'info');
+
+  const btn = document.getElementById('btnDownloadPeriod');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '⏳ Fetching…'; btn.disabled = true;
+
+  try {
+    const r = await fetch(`${PROXY}/api/attachments/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        moveIds: toFetch.map(r => r.odoo_id),
+        entries: toFetch.map(r => ({ odoo_id: r.odoo_id, entry_no: r.entry_no }))
+      })
+    });
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.error || 'Failed to fetch attachments');
+    if (!res.attachments?.length) { toast('No attachment files found for this period', 'error'); return; }
+
+    btn.innerHTML = '📦 Zipping…';
+
+    // Build ZIP — folder structure: YYYY-MM / EntryNo / filename
+    const zip = new JSZip();
+    res.attachments.forEach(att => {
+      const entry       = toFetch.find(e => e.odoo_id === att.move_id) || {};
+      const monthFolder = (entry.date || '').substring(0,7) || 'Unknown_Month'; // e.g. "2025-06"
+      const safeEntry   = (att.entry_no || 'Unknown').replace(/[\/\:*?"<>|]/g, '_');
+      const safeFile    = (att.filename  || 'file').replace(/[\/\:*?"<>|]/g, '_');
+      zip.file(`${monthFolder}/${safeEntry}/${safeFile}`, att.data_b64, { base64: true });
+    });
+
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const periodLabel = fromM === toM ? fromM : `${fromM}_to_${toM}`;
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `attachments_${periodLabel}_${new Date().toISOString().slice(0,10)}.zip`
+    });
+    a.click();
+    toast(`✅ Downloaded ${res.attachments.length} attachment${res.attachments.length>1?'s':''} for ${fromM} → ${toM}`, 'success');
+
+  } catch(e) {
+    toast('Download failed: ' + e.message, 'error');
+    console.error(e);
+  } finally {
+    btn.innerHTML = origHTML; btn.disabled = false;
   }
 }
 
