@@ -2632,16 +2632,17 @@ function goPage(p) {
 
 function x(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ── Shared helper: builds "VendorName_BillNo" folder name for ZIP ──
-// Falls back gracefully if partner or bill_ref are missing.
+// ── Shared helper: builds safe folder/file name parts for ZIP ──
 function buildAttFolderName(entry) {
   const safe = s => String(s || '').trim().replace(/[\/\:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim();
-  const vendor  = safe(entry.partner)  || 'Unknown_Vendor';
+  return safe(entry.partner) || 'Unknown_Vendor';
+}
+function buildAttFileName(entry, origFilename) {
+  const safe = s => String(s || '').trim().replace(/[\/\:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim();
   const billRef = safe(entry.bill_ref) || safe(entry.entry_no) || 'No_Ref';
-  // Truncate each part so the full path stays under 200 chars
-  const v = vendor.substring(0, 60);
-  const b = billRef.substring(0, 40);
-  return `${v}_${b}`;
+  const fname   = safe(origFilename) || 'file';
+  // Prefix original filename with bill ref: "INV-001_invoice.pdf"
+  return `${billRef.substring(0, 40)}_${fname}`.substring(0, 120);
 }
 
 // ── Download All Attachments as ZIP ──────────────────────────
@@ -2651,7 +2652,7 @@ async function downloadAllAttachments() {
   const hasRecords = filtered.filter(r => r.has_attachment !== false);
   if (!hasRecords.length) { toast('No attachments found in current view','error'); return; }
 
-  const limit = 50;
+  const limit = 500;
   const toFetch = hasRecords.slice(0, limit);
   if (hasRecords.length > limit) {
     toast(`Downloading first ${limit} of ${hasRecords.length} entries (apply filters to narrow down)`, 'info');
@@ -2678,14 +2679,14 @@ async function downloadAllAttachments() {
 
     btn.innerHTML = '📦 Zipping…';
 
-    // Build ZIP — YYYY-MM / VendorName_BillNo / filename
+    // Build ZIP — YYYY-MM / VendorName / BillNo_filename.pdf
     const zip = new JSZip();
     res.attachments.forEach(att => {
       const entry       = toFetch.find(e => e.odoo_id === att.move_id) || {};
       const monthFolder = (entry.date || '').substring(0, 7) || 'Unknown_Month';
-      const folderName  = buildAttFolderName(entry);
-      const safeFile    = (att.filename || 'file').replace(/[\/\:*?"<>|]/g, '_');
-      zip.file(`${monthFolder}/${folderName}/${safeFile}`, att.data_b64, { base64: true });
+      const vendor      = buildAttFolderName(entry).substring(0, 80);
+      const fileName    = buildAttFileName(entry, att.filename);
+      zip.file(`${monthFolder}/${vendor}/${fileName}`, att.data_b64, { base64: true });
     });
 
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
@@ -2771,7 +2772,7 @@ async function downloadByPeriod() {
     return;
   }
 
-  const limit   = 100;
+  const limit   = 500;
   const toFetch = inRange.slice(0, limit);
   const extra   = inRange.length > limit ? ` (capped at ${limit} — ${inRange.length - limit} skipped)` : '';
   toast(`Fetching ${toFetch.length} attachment${toFetch.length>1?'s':''} for ${fromM} → ${toM}${extra}…`, 'info');
@@ -2795,14 +2796,14 @@ async function downloadByPeriod() {
 
     btn.innerHTML = '📦 Zipping…';
 
-    // Build ZIP — YYYY-MM / VendorName_BillNo / filename
+    // Build ZIP — YYYY-MM / VendorName / BillNo_filename.pdf
     const zip = new JSZip();
     res.attachments.forEach(att => {
       const entry       = toFetch.find(e => e.odoo_id === att.move_id) || {};
       const monthFolder = (entry.date || '').substring(0, 7) || 'Unknown_Month';
-      const folderName  = buildAttFolderName(entry);
-      const safeFile    = (att.filename || 'file').replace(/[\/\:*?"<>|]/g, '_');
-      zip.file(`${monthFolder}/${folderName}/${safeFile}`, att.data_b64, { base64: true });
+      const vendor      = buildAttFolderName(entry).substring(0, 80);
+      const fileName    = buildAttFileName(entry, att.filename);
+      zip.file(`${monthFolder}/${vendor}/${fileName}`, att.data_b64, { base64: true });
     });
 
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
