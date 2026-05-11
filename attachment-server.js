@@ -428,39 +428,78 @@ app.post('/api/sync/missing-attachments', async (req, res) => {
 // Downloads actual attachment files for given move IDs from Odoo.
 // Returns JSON: { ok, attachments: [{ move_id, entry_no, filename, mimetype, data_b64 }] }
 // Client-side uses JSZip to bundle into a ZIP for download.
-// Limit: 100 attachments max to avoid timeout.
+//
+// FIX 1 — Limit raised from 100 → 500 to match the frontend batch size.
+//          Old cap of 100 silently left entries 101-N unprocessed, making
+//          them all appear as "ghost attachments" even when files existed.
+//
+// FIX 2 — datas field is now fetched via a separate read() call per batch
+//          instead of inside search_read(). In Odoo 16+, search_read()
+//          returns datas=false for filestore-backed attachments (the common
+//          case), causing real files to be dropped by the old .filter(a=>a.datas).
 app.post('/api/attachments/download', async (req, res) => {
   const s = loadSettings();
   const { moveIds = [], entries = [] } = req.body;  // entries = [{ odoo_id, entry_no }]
   if (!moveIds.length) return res.status(400).json({ ok: false, error: 'No move IDs provided' });
 
-  const limitedIds = moveIds.slice(0, 100);  // max 100 attachments
+  const limitedIds = moveIds.slice(0, 500);  // raised: 100 → 500
   console.log(`\n📎 Attachment Download | ${limitedIds.length} entries`);
 
   try {
     const session = await odooAuthenticate(s.url, s.db, s.username, s.apiKey);
 
-    // Fetch all attachments for these moves
-    const atts = await odooCall(session, 'ir.attachment', 'search_read',
+    // Step 1: Find attachment records — metadata only, no datas yet.
+    // search_read() returns datas=false for filestore-backed files in Odoo 16+,
+    // so we fetch metadata first then read datas separately.
+    const attMeta = await odooCall(session, 'ir.attachment', 'search_read',
       [[['res_model', '=', 'account.move'], ['res_id', 'in', limitedIds]]],
-      { fields: ['id', 'name', 'mimetype', 'res_id', 'datas'], limit: 500 }
+      { fields: ['id', 'name', 'mimetype', 'res_id'], limit: 2000 }
     );
+
+    console.log(`  📄 ${attMeta.length} attachment records found`);
 
     // Build entry_no lookup
     const entryMap = {};
     entries.forEach(e => { entryMap[e.odoo_id] = e.entry_no || String(e.odoo_id); });
 
-    const attachments = atts
-      .filter(a => a.datas)  // skip attachments with no data
-      .map(a => ({
-        move_id:   a.res_id,
-        entry_no:  entryMap[a.res_id] || String(a.res_id),
-        filename:  a.name || `attachment_${a.id}`,
-        mimetype:  a.mimetype || 'application/octet-stream',
-        data_b64:  a.datas    // already base64 from Odoo
-      }));
+    // Step 2: Read datas in batches of 20 using read() which always returns
+    // the computed binary field correctly regardless of storage backend.
+    const attachments = [];
+    const DATAS_BATCH = 20;
+    for (let i = 0; i < attMeta.length; i += DATAS_BATCH) {
+      const batch    = attMeta.slice(i, i + DATAS_BATCH);
+      const batchIds = batch.map(a => a.id);
+      let dataRows;
+      try {
+        dataRows = await odooCall(session, 'ir.attachment', 'read',
+          [batchIds],
+          { fields: ['id', 'datas'] }
+        );
+      } catch (readErr) {
+        console.warn(`  ⚠ datas read failed for batch ${i}–${i + DATAS_BATCH}: ${readErr.message}`);
+        continue;
+      }
+      const datasMap = {};
+      dataRows.forEach(d => { if (d.datas) datasMap[d.id] = d.datas; });
 
-    console.log(`  ✅ ${attachments.length} attachments fetched`);
+      batch.forEach(att => {
+        const datas = datasMap[att.id];
+        if (!datas) {
+          // Metadata exists but binary is genuinely missing (deleted from filestore)
+          console.warn(`  ⚠ No binary for attachment id=${att.id} (${att.name}) — skipping`);
+          return;
+        }
+        attachments.push({
+          move_id:  att.res_id,
+          entry_no: entryMap[att.res_id] || String(att.res_id),
+          filename: att.name || `attachment_${att.id}`,
+          mimetype: att.mimetype || 'application/octet-stream',
+          data_b64: datas
+        });
+      });
+    }
+
+    console.log(`  ✅ ${attachments.length} attachments fetched (${attMeta.length - attachments.length} skipped — no binary data)`);
     res.json({ ok: true, count: attachments.length, attachments });
 
   } catch(e) {
