@@ -2724,7 +2724,7 @@ async function downloadAllAttachments() {
     // Build ZIP — YYYY-MM / VendorName / BillNo_filename.pdf
     const zip = new JSZip();
     res.attachments.forEach(att => {
-      const entry       = toFetch.find(e => e.odoo_id === att.move_id) || {};
+      const entry       = toFetch.find(e => String(e.odoo_id) === String(att.move_id)) || {};
       const monthFolder = (entry.date || '').substring(0, 7) || 'Unknown_Month';
       const vendor      = buildAttFolderName(entry).substring(0, 80);
       const fileName    = buildAttFileName(entry, att.filename);
@@ -2745,8 +2745,8 @@ async function downloadAllAttachments() {
 
     // Show ghost attachment report if any entries returned no file
     if (missing > 0) {
-      const returnedIds = new Set(res.attachments.map(a => a.move_id));
-      const ghosts = toFetch.filter(e => !returnedIds.has(e.odoo_id));
+      const returnedIds = new Set(res.attachments.map(a => String(a.move_id)));
+      const ghosts = toFetch.filter(e => !returnedIds.has(String(e.odoo_id)));
       const periodLabel = fromM === toM ? fromM : `${fromM} → ${toM}`;
       setTimeout(() => showGhostAtt(ghosts, periodLabel), 600);
     }
@@ -2853,7 +2853,7 @@ async function downloadByPeriod() {
     // Build ZIP — YYYY-MM / VendorName / BillNo_filename.pdf
     const zip = new JSZip();
     res.attachments.forEach(att => {
-      const entry       = toFetch.find(e => e.odoo_id === att.move_id) || {};
+      const entry       = toFetch.find(e => String(e.odoo_id) === String(att.move_id)) || {};
       const monthFolder = (entry.date || '').substring(0, 7) || 'Unknown_Month';
       const vendor      = buildAttFolderName(entry).substring(0, 80);
       const fileName    = buildAttFileName(entry, att.filename);
@@ -2875,8 +2875,8 @@ async function downloadByPeriod() {
 
     // Show ghost attachment report if any entries returned no file
     if (missing > 0) {
-      const returnedIds = new Set(res.attachments.map(a => a.move_id));
-      const ghosts = toFetch.filter(e => !returnedIds.has(e.odoo_id));
+      const returnedIds = new Set(res.attachments.map(a => String(a.move_id)));
+      const ghosts = toFetch.filter(e => !returnedIds.has(String(e.odoo_id)));
       setTimeout(() => showGhostAtt(ghosts, 'Download All'), 600);
     }
 
