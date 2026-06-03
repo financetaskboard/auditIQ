@@ -3554,6 +3554,38 @@ function buildAttFileName(entry, origFilename) {
   return `${billRef.substring(0, 40)}_${fname}`.substring(0, 120);
 }
 
+// ── Safe JSON parser — gives useful errors instead of "Unexpected end of JSON input" ──
+async function safeJson(r) {
+  const text = await r.text();
+  if (!r.ok) {
+    const snippet = text ? ` — ${text.slice(0, 200)}` : '';
+    throw new Error(`Server returned ${r.status} ${r.statusText}${snippet}`);
+  }
+  if (!text || !text.trim()) {
+    throw new Error(`Server returned an empty response (likely a gateway timeout). Try a smaller batch or narrower period.`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error(`Server returned invalid JSON — ${text.slice(0, 200)}`);
+  }
+}
+
+// ── Fetch one batch of attachments from the proxy ──
+async function fetchAttachmentBatch(batch) {
+  const r = await fetch(`${PROXY}/api/attachments/download`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      moveIds: batch.map(r => r.odoo_id),
+      entries: batch.map(r => ({ odoo_id: r.odoo_id, entry_no: r.entry_no }))
+    })
+  });
+  const res = await safeJson(r);
+  if (!res.ok) throw new Error(res.error || 'Failed to fetch attachments');
+  return res.attachments || [];
+}
+
 // ── Download All Attachments as ZIP ──────────────────────────
 async function downloadAllAttachments() {
   if (!filtered.length) { toast('No entries to download','error'); return; }
@@ -3571,26 +3603,42 @@ async function downloadAllAttachments() {
 
   const btn = document.getElementById('btnDownloadAll');
   const origText = btn.innerHTML;
-  btn.innerHTML = '⏳ Fetching…'; btn.disabled = true;
+  btn.disabled = true;
+
+  // Batch in chunks to avoid gateway timeouts / huge JSON payloads
+  const BATCH_SIZE = 25;
+  const batches = [];
+  for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
+    batches.push(toFetch.slice(i, i + BATCH_SIZE));
+  }
+
+  const allAttachments = [];
+  const failedBatches = [];
 
   try {
-    const r = await fetch(`${PROXY}/api/attachments/download`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        moveIds: toFetch.map(r => r.odoo_id),
-        entries: toFetch.map(r => ({ odoo_id: r.odoo_id, entry_no: r.entry_no }))
-      })
-    });
-    const res = await r.json();
-    if (!res.ok) throw new Error(res.error || 'Failed to fetch attachments');
-    if (!res.attachments?.length) { toast('No attachment files found','error'); return; }
+    for (let i = 0; i < batches.length; i++) {
+      btn.innerHTML = `⏳ ${i + 1}/${batches.length}…`;
+      try {
+        const atts = await fetchAttachmentBatch(batches[i]);
+        allAttachments.push(...atts);
+      } catch (err) {
+        console.error(`Batch ${i + 1} failed:`, err);
+        failedBatches.push({ index: i + 1, error: err.message });
+        // Continue with remaining batches instead of aborting
+      }
+    }
+
+    if (!allAttachments.length) {
+      throw new Error(failedBatches.length
+        ? `All ${batches.length} batches failed. First error: ${failedBatches[0].error}`
+        : 'No attachment files found');
+    }
 
     btn.innerHTML = '📦 Zipping…';
 
     // Build ZIP — YYYY-MM / VendorName / BillNo_filename.pdf
     const zip = new JSZip();
-    res.attachments.forEach(att => {
+    allAttachments.forEach(att => {
       const entry       = toFetch.find(e => String(e.odoo_id) === String(att.move_id)) || {};
       const monthFolder = (entry.date || '').substring(0, 7) || 'Unknown_Month';
       const vendor      = buildAttFolderName(entry).substring(0, 80);
@@ -3605,17 +3653,18 @@ async function downloadAllAttachments() {
     });
     a.click();
     const fetched  = toFetch.length;
-    const received = res.attachments.length;
+    const received = allAttachments.length;
     const missing  = fetched - received;
     const missingNote = missing > 0 ? ` · ${missing} entries had no file in Odoo` : '';
-    toast(`✅ Downloaded ${received} file${received!==1?'s':''} from ${fetched} entries${missingNote}`, 'success');
+    const failNote    = failedBatches.length ? ` · ${failedBatches.length} batch(es) failed — retry to fetch missing` : '';
+    toast(`✅ Downloaded ${received} file${received!==1?'s':''} from ${fetched} entries${missingNote}${failNote}`,
+          failedBatches.length ? 'info' : 'success');
 
     // Show ghost attachment report if any entries returned no file
     if (missing > 0) {
-      const returnedIds = new Set(res.attachments.map(a => String(a.move_id)));
+      const returnedIds = new Set(allAttachments.map(a => String(a.move_id)));
       const ghosts = toFetch.filter(e => !returnedIds.has(String(e.odoo_id)));
-      const periodLabel = fromM === toM ? fromM : `${fromM} → ${toM}`;
-      setTimeout(() => showGhostAtt(ghosts, periodLabel), 600);
+      setTimeout(() => showGhostAtt(ghosts, 'Download All'), 600);
     }
 
   } catch(e) {
@@ -3700,26 +3749,42 @@ async function downloadByPeriod() {
 
   const btn = document.getElementById('btnDownloadPeriod');
   const origHTML = btn.innerHTML;
-  btn.innerHTML = '⏳ Fetching…'; btn.disabled = true;
+  btn.disabled = true;
+
+  // Batch in chunks to avoid gateway timeouts / huge JSON payloads
+  const BATCH_SIZE = 25;
+  const batches = [];
+  for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
+    batches.push(toFetch.slice(i, i + BATCH_SIZE));
+  }
+
+  const allAttachments = [];
+  const failedBatches = [];
 
   try {
-    const r = await fetch(`${PROXY}/api/attachments/download`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        moveIds: toFetch.map(r => r.odoo_id),
-        entries: toFetch.map(r => ({ odoo_id: r.odoo_id, entry_no: r.entry_no }))
-      })
-    });
-    const res = await r.json();
-    if (!res.ok) throw new Error(res.error || 'Failed to fetch attachments');
-    if (!res.attachments?.length) { toast('No attachment files found for this period', 'error'); return; }
+    for (let i = 0; i < batches.length; i++) {
+      btn.innerHTML = `⏳ ${i + 1}/${batches.length}…`;
+      try {
+        const atts = await fetchAttachmentBatch(batches[i]);
+        allAttachments.push(...atts);
+      } catch (err) {
+        console.error(`Batch ${i + 1} failed:`, err);
+        failedBatches.push({ index: i + 1, error: err.message });
+        // Continue with remaining batches
+      }
+    }
+
+    if (!allAttachments.length) {
+      throw new Error(failedBatches.length
+        ? `All ${batches.length} batches failed. First error: ${failedBatches[0].error}`
+        : 'No attachment files found for this period');
+    }
 
     btn.innerHTML = '📦 Zipping…';
 
     // Build ZIP — YYYY-MM / VendorName / BillNo_filename.pdf
     const zip = new JSZip();
-    res.attachments.forEach(att => {
+    allAttachments.forEach(att => {
       const entry       = toFetch.find(e => String(e.odoo_id) === String(att.move_id)) || {};
       const monthFolder = (entry.date || '').substring(0, 7) || 'Unknown_Month';
       const vendor      = buildAttFolderName(entry).substring(0, 80);
@@ -3735,14 +3800,16 @@ async function downloadByPeriod() {
     });
     a.click();
     const fetched  = toFetch.length;
-    const received = res.attachments.length;
+    const received = allAttachments.length;
     const missing  = fetched - received;
     const missingNote = missing > 0 ? ` (${missing} entries had no file in Odoo)` : '';
-    toast(`✅ Downloaded ${received} file${received!==1?'s':''} from ${fetched} entries${missingNote}`, 'success');
+    const failNote    = failedBatches.length ? ` · ${failedBatches.length} batch(es) failed — retry to fetch missing` : '';
+    toast(`✅ Downloaded ${received} file${received!==1?'s':''} from ${fetched} entries${missingNote}${failNote}`,
+          failedBatches.length ? 'info' : 'success');
 
     // Show ghost attachment report if any entries returned no file
     if (missing > 0) {
-      const returnedIds = new Set(res.attachments.map(a => String(a.move_id)));
+      const returnedIds = new Set(allAttachments.map(a => String(a.move_id)));
       const ghosts = toFetch.filter(e => !returnedIds.has(String(e.odoo_id)));
       setTimeout(() => showGhostAtt(ghosts, 'Download All'), 600);
     }
